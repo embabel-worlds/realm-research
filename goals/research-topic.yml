@@ -1,0 +1,5 @@
+stepType: goal
+name: research-topic
+description: "Research a topic in depth — gather information from web search, arXiv, and Wikipedia, then return structured findings with source URLs. Use when the user asks to research, investigate, look into, or do a deep-dive on a subject. Does NOT save a document; the user must ask explicitly for that."
+outputTypeName: ResearchResult
+export: true
