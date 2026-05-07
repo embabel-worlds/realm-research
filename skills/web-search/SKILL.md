@@ -31,7 +31,7 @@ gateway.wikipedia.search({ q: "your query", limit: 10 })
 ```javascript
 const r = await gateway.brave.webSearch({ q: "claude opus 4.7 release notes", count: 5 });
 for (const hit of r.web.results) {
-  console.log(`- [${hit.title}](${hit.url}) — ${hit.description}`);
+  console.log("-", hit.title, hit.url, "—", hit.description);
 }
 ```
 
