@@ -1,0 +1,153 @@
+openapi: 3.0.3
+info:
+  title: Brave Search
+  description: >
+    Brave Search REST API. Web and news search backed by an independent index —
+    the primary tool for any query that needs current information from the public web.
+  version: "1.0"
+
+servers:
+  - url: https://api.search.brave.com/res/v1
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-Subscription-Token
+  schemas:
+    SearchResult:
+      type: object
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        description:
+          type: string
+          description: Snippet shown under the result; may contain HTML highlight tags.
+        age:
+          type: string
+          description: Human-readable freshness label (e.g. "2 days ago"). Absent on undated results.
+    Query:
+      type: object
+      properties:
+        original:
+          type: string
+    WebSection:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+    WebSearchResponse:
+      type: object
+      properties:
+        query:
+          $ref: '#/components/schemas/Query'
+        web:
+          $ref: '#/components/schemas/WebSection'
+    NewsSearchResponse:
+      type: object
+      properties:
+        query:
+          $ref: '#/components/schemas/Query'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+
+security:
+  - apiKey: []
+
+paths:
+  /web/search:
+    get:
+      operationId: webSearch
+      summary: Search the web with Brave
+      description: >
+        Returns web pages relevant to the query. Use for general web information,
+        current facts, "what is" / "who is" lookups, product / company background,
+        and any topic where stale training data is a risk.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query (max 400 characters, max 50 words).
+          schema:
+            type: string
+        - name: count
+          in: query
+          description: Number of results to return.
+          schema:
+            type: integer
+            default: 10
+            maximum: 20
+        - name: offset
+          in: query
+          description: Page offset (0-based). Combine with count to paginate.
+          schema:
+            type: integer
+            default: 0
+        - name: country
+          in: query
+          description: Two-letter country code (ISO 3166-1 alpha-2) to localise results.
+          schema:
+            type: string
+        - name: freshness
+          in: query
+          description: >
+            Time-window filter. pd = past day, pw = past week, pm = past month, py = past year.
+            Use when the user asks for recent / latest info.
+          schema:
+            type: string
+            enum: [pd, pw, pm, py]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebSearchResponse'
+
+  /news/search:
+    get:
+      operationId: newsSearch
+      summary: Search news articles with Brave
+      description: >
+        Returns news articles for the query. Use when the user explicitly wants
+        news / headlines / current events. For general knowledge prefer webSearch.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query.
+          schema:
+            type: string
+        - name: count
+          in: query
+          description: Number of results to return.
+          schema:
+            type: integer
+            default: 10
+            maximum: 20
+        - name: country
+          in: query
+          description: Two-letter country code (ISO 3166-1 alpha-2) to localise results.
+          schema:
+            type: string
+        - name: freshness
+          in: query
+          description: Time-window filter. pd = past day, pw = past week, pm = past month, py = past year.
+          schema:
+            type: string
+            enum: [pd, pw, pm, py]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsSearchResponse'

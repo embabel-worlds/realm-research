@@ -19,7 +19,7 @@ prompt: |
   findings.
 
 tools:
-  - brave_search
+  - brave
   - fetch
   - arxiv
   - progress

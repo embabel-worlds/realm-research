@@ -1,0 +1,112 @@
+openapi: 3.0.3
+info:
+  title: Wikipedia
+  description: >
+    Read-only access to English Wikipedia via the public MediaWiki Core REST API
+    and Wikimedia REST page-summary endpoint. No authentication required.
+  version: "1.0"
+
+servers:
+  - url: https://en.wikipedia.org
+
+components:
+  schemas:
+    SearchPage:
+      type: object
+      properties:
+        id:
+          type: integer
+        key:
+          type: string
+          description: URL-safe page key — pass to getSummary as the title.
+        title:
+          type: string
+          description: Display title of the page.
+        excerpt:
+          type: string
+          description: HTML excerpt with <span class='searchmatch'>...</span> highlights around matched terms.
+        description:
+          type: string
+          description: Short Wikidata-derived description of the page.
+    SearchResponse:
+      type: object
+      properties:
+        pages:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchPage'
+    PageSummary:
+      type: object
+      properties:
+        title:
+          type: string
+        displaytitle:
+          type: string
+        description:
+          type: string
+        extract:
+          type: string
+          description: Plain-text summary of the page (typically the lead section).
+        content_urls:
+          type: object
+          properties:
+            desktop:
+              type: object
+              properties:
+                page:
+                  type: string
+                  format: uri
+
+paths:
+  /w/rest.php/v1/search/page:
+    get:
+      operationId: search
+      summary: Full-text search of Wikipedia
+      description: >
+        Search Wikipedia for the query. Returns matching pages with title, short
+        description, and an HTML-highlighted excerpt. Follow up with getSummary(title)
+        to read the lead-section content of any result.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results to return.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+
+  /api/rest_v1/page/summary/{title}:
+    get:
+      operationId: getSummary
+      summary: Get the lead-section summary of a Wikipedia page
+      description: >
+        Returns a clean plain-text summary of the page (typically the lead section)
+        plus its display title, short description, and canonical URL. Pass the
+        exact title returned by search.
+      parameters:
+        - name: title
+          in: path
+          required: true
+          description: Wikipedia page title (URL encoding handled by the gateway).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageSummary'

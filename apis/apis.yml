@@ -1,0 +1,14 @@
+# Brave Search — vendored OpenAPI spec, API-key auth.
+# BRAVE_API_KEY is read from the workspace credential store first,
+# then process env. Missing key => the API is skipped at load time.
+- url: brave.yaml
+  name: brave
+  type: openapi
+  auth: api-key
+  token-env: BRAVE_API_KEY
+
+# Wikipedia — public, no auth.
+- url: wikipedia.yaml
+  name: wikipedia
+  type: openapi
+  auth: none
