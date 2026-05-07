@@ -61,16 +61,17 @@ paths:
   /w/rest.php/v1/search/page:
     get:
       operationId: search
-      summary: Full-text search of Wikipedia
+      summary: "Search Wikipedia. Call: search({ q: '...', limit: 10 }). The query field is named `q`, not `query`."
       description: >
         Search Wikipedia for the query. Returns matching pages with title, short
         description, and an HTML-highlighted excerpt. Follow up with getSummary(title)
-        to read the lead-section content of any result.
+        to read the lead-section content of any result. The query string MUST be
+        passed as `q` (single letter).
       parameters:
         - name: q
           in: query
           required: true
-          description: Search query.
+          description: "Search query string (parameter name is literally `q`, not `query`)."
           schema:
             type: string
         - name: limit

@@ -66,16 +66,17 @@ paths:
   /web/search:
     get:
       operationId: webSearch
-      summary: Search the web with Brave
+      summary: "Search the web with Brave. Call: webSearch({ q: '...', count: 5 }). The query field is named `q`, not `query`."
       description: >
         Returns web pages relevant to the query. Use for general web information,
         current facts, "what is" / "who is" lookups, product / company background,
-        and any topic where stale training data is a risk.
+        and any topic where stale training data is a risk. The query string MUST
+        be passed as `q` (single letter) — `query` will produce HTTP 422 missing-q.
       parameters:
         - name: q
           in: query
           required: true
-          description: Search query (max 400 characters, max 50 words).
+          description: "Search query string (parameter name is literally `q`, not `query`). Max 400 characters, max 50 words."
           schema:
             type: string
         - name: count
@@ -115,15 +116,16 @@ paths:
   /news/search:
     get:
       operationId: newsSearch
-      summary: Search news articles with Brave
+      summary: "Search news articles with Brave. Call: newsSearch({ q: '...', count: 5 }). The query field is named `q`, not `query`."
       description: >
         Returns news articles for the query. Use when the user explicitly wants
         news / headlines / current events. For general knowledge prefer webSearch.
+        The query string MUST be passed as `q` (single letter).
       parameters:
         - name: q
           in: query
           required: true
-          description: Search query.
+          description: "Search query string (parameter name is literally `q`, not `query`)."
           schema:
             type: string
         - name: count

@@ -8,7 +8,12 @@
   token-env: BRAVE_API_KEY
 
 # Wikipedia — public, no auth.
+# Wikimedia rejects requests without a User-Agent (HTTP 403 — see
+# https://w.wiki/4wJS). The gateway's default Spring User-Agent is
+# considered "robot policy" violating, so we set our own.
 - url: wikipedia.yaml
   name: wikipedia
   type: openapi
   auth: none
+  headers:
+    User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
