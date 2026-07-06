@@ -89,6 +89,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/SearchResponse'
 
+  /w/api.php:
+    get:
+      operationId: searchSummaries
+      summary: "Search Wikipedia and return each candidate's plain-text summary + Wikidata id in ONE call."
+      description: >
+        MediaWiki Action API search that, unlike `search`, returns for each candidate the plain-text lead
+        `extract`, the canonical `fullurl`, and the Wikidata id (`pageprops.wikibase_item`) — everything
+        needed to disambiguate a person to the right article. Backs the WikipediaArticle virtual-cypher join.
+        MUST be called with `formatversion=2` so `query.pages` is an ARRAY (not an object map).
+      parameters:
+        - { name: action, in: query, required: true, schema: { type: string, default: query } }
+        - { name: generator, in: query, required: true, schema: { type: string, default: search } }
+        - name: gsrsearch
+          in: query
+          required: true
+          description: The search query (the person's name).
+          schema: { type: string }
+        - { name: gsrlimit, in: query, schema: { type: integer, default: 3 } }
+        - { name: prop, in: query, schema: { type: string, default: "extracts|info|pageprops" } }
+        - { name: exintro, in: query, schema: { type: integer, default: 1 } }
+        - { name: explaintext, in: query, schema: { type: integer, default: 1 } }
+        - { name: inprop, in: query, schema: { type: string, default: url } }
+        - { name: ppprop, in: query, schema: { type: string, default: wikibase_item } }
+        - { name: format, in: query, schema: { type: string, default: json } }
+        - { name: formatversion, in: query, schema: { type: integer, default: 2 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: object
+                    properties:
+                      pages:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            pageid: { type: integer }
+                            title: { type: string }
+                            extract: { type: string, description: Plain-text lead-section summary. }
+                            fullurl: { type: string, format: uri }
+                            pageprops:
+                              type: object
+                              properties:
+                                wikibase_item: { type: string, description: "Wikidata Q-id (stable cross-language handle)." }
+
   /api/rest_v1/page/summary/{title}:
     get:
       operationId: getSummary

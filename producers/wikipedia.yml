@@ -1,0 +1,38 @@
+# Virtual-join producer over Wikipedia (see specs/VIRTUAL_CYPHER.md). A keyed reader: given a person's
+# name, it SEARCHES Wikipedia and returns up to a few candidate articles, each with its plain-text lead
+# `extract`, canonical `fullurl`, and Wikidata id. The host's WikipediaResolver then disambiguates the
+# candidates to AT MOST ONE (corroborated by an org the person works for, or a confirmed learned handle),
+# so a non-notable person is never linked to a famous namesake. One call per name.
+#
+# `searchSummaries` MUST run with formatversion=2 so `query.pages` is an ARRAY the records extractor can
+# spread (the default formatversion returns an object map keyed by pageid). Needs the polite User-Agent
+# (apis.yml) — Wikimedia 403s the default Spring agent.
+
+- name: wikipediaByName
+  kind: remote
+  operation: searchSummaries        # GET /w/api.php (MediaWiki Action API, generator=search)
+  records: "$.query.pages[*]"
+  args:
+    action: query
+    generator: search
+    gsrsearch: "{keys}"             # the person's name is injected here
+    gsrlimit: 3                     # a few candidates; the resolver keeps at most one
+    prop: "extracts|info|pageprops"
+    exintro: 1                      # lead section only
+    explaintext: 1                  # plain text, not HTML
+    inprop: url                     # → fullurl
+    ppprop: wikibase_item           # → pageprops.wikibase_item (the Wikidata id)
+    format: json
+    formatversion: 2                # REQUIRED — makes query.pages an array
+  keyTemplate: "{key}"              # one name per call → gsrsearch=<name>
+  echoKeyAs: matchedName            # stamp the searched name onto each record (the HAS_WIKIPEDIA link key)
+  project:
+    url: fullurl
+    wikidataId: pageprops.wikibase_item
+  cache:
+    kind: ttl
+    seconds: 604800                 # a week — a person's bio is stable
+  cost:
+    bucket: "wikipedia"
+    rate: "10/sec"
+    yield: high

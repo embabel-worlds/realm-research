@@ -1,0 +1,94 @@
+# Virtual-join producers over OpenAlex (see specs/VIRTUAL_CYPHER.md). RemoteRepositories
+# (kind: remote) — keyed readers over the OpenAlex /works search.
+#
+# papersByTopic: fetch the most-relevant works for a topic string. The search results do
+# NOT echo the query, so `echoKeyAs: topicName` stamps the searched topic onto each record
+# — that's what the HAS_PAPER join matches the ResearchTopic anchor by (recordKeyField:
+# topicName). `project` lifts OpenAlex's field names onto the ResearchPaper type's props.
+# requiresFilter is NOT needed: the topic key (search=) already scopes the source, so the
+# engine never lists all of OpenAlex.
+
+- name: papersByTopic
+  kind: remote
+  operation: searchWorks            # GET /works (OpenAlex)
+  records: "$.results[*]"
+  args:
+    search: "{keys}"                # the topic string is injected here
+    sort: "relevance_score:desc"
+    per_page: 25
+    mailto: "assistant@embabel.com" # OpenAlex polite pool
+  keyTemplate: "{key}"              # one topic per call → search=<topic>
+  echoKeyAs: topicName              # stamp the queried topic onto each paper record
+  project:
+    url: id                         # OpenAlex `id` (work URL) → ResearchPaper.url
+    publishedDate: publication_date
+    citedByCount: cited_by_count
+    relevanceScore: relevance_score
+    # A `[*]` path flattens a nested array into a LIST property: every author's display name onto the
+    # paper, for a quick "who wrote it" without traversing HAS_AUTHOR. (The paired author subgraph —
+    # name + ORCID together, for resolution to people you know — comes via the HAS_PAPER `brings`.)
+    authorNames: "authorships[*].author.display_name"
+  cost:
+    bucket: "openalex"
+    rate: "10/sec"                  # OpenAlex polite pool: ~10 req/s, 100k/day
+    yield: high
+
+# citedWorks / citingWorks: the citation graph, both directions, off a paper's own OpenAlex id. OpenAlex
+# exposes BOTH directions as scalar-keyed FILTERS on GET /works, so each is the papersByTopic pattern with a
+# `filter` instead of a `search` — no list-key fan-out off `referenced_works` needed. Citation results don't
+# echo which paper you asked about, so `echoKeyAs: anchorPaperId` stamps the ANCHOR paper's id onto each
+# result and the join links them back (like papersByTopic's topicName).
+#
+# CITES (outgoing) = the works this paper REFERENCES → filter `cited_by:<paper>`.
+- name: citedWorks
+  kind: remote
+  operation: searchWorks            # GET /works (OpenAlex), filtered
+  records: "$.results[*]"
+  args:
+    filter: "cited_by:{keys}"       # works cited BY the anchor paper
+    per_page: 200
+    mailto: "assistant@embabel.com"
+  keyTemplate: "{key}"              # one paper per call (the anchor's OpenAlex id)
+  echoKeyAs: anchorPaperId          # stamp the citing (anchor) paper's id onto each referenced work
+  project:
+    url: id
+    publishedDate: publication_date
+    citedByCount: cited_by_count
+    authorNames: "authorships[*].author.display_name"
+  cost:
+    bucket: "openalex"
+    rate: "10/sec"
+    yield: high
+
+# CITED_BY (incoming) = the works that CITE this paper → filter `cites:<paper>`.
+- name: citingWorks
+  kind: remote
+  operation: searchWorks
+  records: "$.results[*]"
+  args:
+    filter: "cites:{keys}"          # works that cite the anchor paper
+    per_page: 200
+    mailto: "assistant@embabel.com"
+  keyTemplate: "{key}"
+  echoKeyAs: anchorPaperId          # stamp the cited (anchor) paper's id onto each citing work
+  project:
+    url: id
+    publishedDate: publication_date
+    citedByCount: cited_by_count
+    authorNames: "authorships[*].author.display_name"
+  cost:
+    bucket: "openalex"
+    rate: "10/sec"
+    yield: high
+
+# distillTopics: the LLM-reduction hop. A `compute` producer — no external I/O — backed by the
+# ThreadTopicDistiller ComputeFunction (operation = its name). Given a batch of email-thread snippets
+# (the HAS_TOPIC join's keyField), it returns ResearchTopic records {name, sourceText}, distilling
+# search topics from the thread text in ONE LLM call. `sourceText` echoes the snippet so the join links
+# each topic back to its thread. Cached per snippet for a day so a thread reduces once.
+- name: distillTopics
+  kind: compute
+  operation: distillThreadTopics    # selects the ThreadTopicDistiller ComputeFunction bean
+  cache:
+    kind: ttl
+    seconds: 86400

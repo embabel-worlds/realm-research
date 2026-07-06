@@ -1,17 +1,190 @@
-- name: researchPaper
-  description: "An academic research paper from arXiv or similar sources"
+# ResearchPaper is a VIRTUAL node: fetched on demand from OpenAlex when a query
+# traverses to it, materialized transiently, keyed by its OpenAlex id. It is NOT
+# canonicalized onto a spine — `identity: true` here is node identity only (a paper
+# is its own entity, not a Person/Org). Phase 1 carries the paper's scalar facts;
+# authors / abstract / institutions / citations arrive in Phase 2 as a subgraph.
+#
+#   MATCH (t:ResearchTopic {name:'graph memory'})-[:HAS_PAPER]->(p:ResearchPaper)
+#   RETURN p.title, p.url, p.citedByCount ORDER BY p.relevanceScore DESC
+- name: ResearchPaper
+  visibility: internal
+  userAnchor: false
+  description: >-
+    An academic paper, fetched on demand from OpenAlex by SEARCHING a ResearchTopic's name. The topic name
+    IS the search query (OpenAlex relevance-ranks over title + abstract). To find papers spanning several
+    concepts, combine them ALL into the {name:'…'} and ORDER BY relevanceScore — never fetch a broad topic
+    and then filter papers by title text.
+  virtualJoins:
+    # Explicit topic only: MATCH (t:ResearchTopic {name:'…'})-[:HAS_PAPER]->(p:ResearchPaper)
+    # (A `Concept` anchor was tried for "papers about what I discuss with X", but Concept has NO stored
+    # nodes — it's only a literal-seeded search anchor for RelevantEmailThread — so there's no graph path
+    # from a person's threads to their topics. That derivation is Phase 3, not a traversal.)
+    - anchorLabel: ResearchTopic
+      relationship: HAS_PAPER
+      keyField: name                 # ResearchTopic.name (the topic text)
+      recordKeyField: topicName      # stamped onto each record by the producer's echoKeyAs
+      producer: papersByTopic
+      description: >-
+        Papers on a topic, fetched by SEARCHING the topic text — the ResearchTopic name IS the search query
+        (OpenAlex relevance-ranks title + abstract). To find papers about MULTIPLE concepts, put ALL of them
+        in one ResearchTopic {name:'…'} and `ORDER BY p.relevanceScore DESC`. NEVER fetch one broad topic and
+        then narrow papers with a title predicate (e.g. `WHERE p.title CONTAINS …`): only a single page is
+        fetched, and the title is not the match surface — the search string is. Narrow by what you search for.
+      # Authors as a subgraph. Each paper brings its raw authors as ResearchAuthor STAGING nodes
+      # (id/display_name/orcid, from the nested OpenAlex `authorships[*].author`). The host's
+      # AuthorPersonLinker then PROMOTES them to Person nodes hung off the paper by AUTHORED_BY:
+      #   - a REAL Person you already know, when the author resolves (ORCID exact, else exact name), or
+      #   - a transient :Person:Virtual conjured from the OpenAlex record, for an author you don't know,
+      # then DELETES the raw staging. So the only author path a query sees is:
+      #   MATCH (:ResearchPaper)-[:AUTHORED_BY]->(p:Person)   (add `WHERE NOT p:Virtual` for only people you know)
+      # `internal: true` keeps HAS_AUTHOR/ResearchAuthor out of the schema — it's plumbing, not a query path.
+      brings:
+        - childType: ResearchAuthor
+          relationship: HAS_AUTHOR
+          records: "authorships[*].author"   # each authorship's nested author object
+          id: id                              # OpenAlex author id — the staging node's identity
+          internal: true                      # staging only — promoted to Person, then deleted
+        # Institutions, brought as staging then promoted to canonical Organization (AFFILIATED_WITH) by the
+        # host's InstitutionOrganizationLinker — the exact sibling of the author promotion, one spine over.
+        # So "papers about X from universities in China" filters the affiliation org's country.
+        - childType: ResearchInstitution
+          relationship: HAS_AFFILIATION_RAW
+          records: "authorships[*].institutions[*]"   # every institution of every authorship
+          id: id                                      # OpenAlex institution id
+          internal: true                              # staging only — promoted to Organization, then deleted
+          project:
+            wikidata: "ids.wikidata"                  # flatten OpenAlex institution.ids.wikidata → wikidata (when present)
+    # Citation graph, BOTH directions, keyed on the paper's OWN OpenAlex id (no list-key off referenced_works —
+    # OpenAlex exposes each direction as a scalar filter). Anchor on a BOUND paper (reached via HAS_PAPER); never
+    # a bare ResearchPaper scan. `recordKeyField: anchorPaperId` matches the id the producer echoes back.
+    - anchorLabel: ResearchPaper
+      relationship: CITES
+      keyField: id                   # the anchor paper's OpenAlex id
+      recordKeyField: anchorPaperId  # stamped onto each referenced work by citedWorks' echoKeyAs
+      producer: citedWorks
+      description: >-
+        The works this paper REFERENCES (outgoing citations): `MATCH (p:ResearchPaper)-[:CITES]->(q:ResearchPaper)`
+        — each q is a paper p cites. Anchor p on a bound paper (e.g. HAS_PAPER off a topic); `ORDER BY
+        q.citedByCount DESC` for the most-cited references. RETURN q.title, q.url.
+    - anchorLabel: ResearchPaper
+      relationship: CITED_BY
+      keyField: id
+      recordKeyField: anchorPaperId  # stamped onto each citing work by citingWorks' echoKeyAs
+      producer: citingWorks
+      description: >-
+        The works that CITE this paper (incoming citations): `MATCH (p:ResearchPaper)-[:CITED_BY]->(q:ResearchPaper)`
+        — each q is a paper that cites p. Anchor p on a bound paper; `ORDER BY q.citedByCount DESC` for the most
+        influential citing works. RETURN q.title, q.url.
   properties:
-    title: "The paper's title"
-    abstract: "Summary of the paper's content and findings"
-    authors: "List of authors"
-    url: "Link to the paper"
-    publishedDate: "Date the paper was published"
+    id:
+      description: "OpenAlex work id (a URL) — the paper's identity."
+      metadata:
+        identity: "true"
+    title: "The paper's title."
+    url: "Link to the paper (OpenAlex work URL)."
+    publishedDate: "Publication date (ISO-8601)."
+    citedByCount: "Number of works that cite this paper."
+    relevanceScore: "OpenAlex search relevance for the topic it was found by — sort/rank by this."
+    authorNames: "Author display names (a list) — a quick read of who wrote it; the resolved authors are the AUTHORED_BY Persons."
+    # abstract is intentionally absent in Phase 1 (OpenAlex returns it as an inverted index needing
+    # reconstruction). Authors ARE projected now — promoted to AUTHORED_BY → Person (see the brings above).
 
-- name: researchTopic
-  description: "A research area or topic of interest"
+# ResearchAuthor: INTERNAL STAGING. A paper's raw OpenAlex author, brought transiently so the host's
+# AuthorPersonLinker can PROMOTE it to a Person hung off the paper by AUTHORED_BY — the REAL Person you know
+# (ORCID, else exact name; learning the ORCID on a name match), or a :Person:Virtual for an unknown author —
+# and then DELETE this staging. Not a query path: the public author edge is (:ResearchPaper)-[:AUTHORED_BY]->(:Person).
+- name: ResearchAuthor
+  visibility: internal
+  userAnchor: false
+  description: "An author of a paper, as reported by OpenAlex (raw, not a canonical Person)."
   properties:
-    name: "Name of the topic"
-    keywords: "Related keywords and terms"
+    id:
+      description: "OpenAlex author id (a URL) — the author node's identity."
+      metadata:
+        identity: "true"
+    display_name: "The author's name as OpenAlex reports it."
+    orcid: "The author's ORCID (a URL), when OpenAlex has one — sparse but a strong identity key."
+
+# ResearchInstitution: INTERNAL STAGING (the institution sibling of ResearchAuthor). A paper's raw OpenAlex
+# institution, brought transiently so the host's InstitutionOrganizationLinker can PROMOTE it to a canonical
+# Organization hung off the paper by AFFILIATED_WITH — the REAL org you know (by ROR, else exact name; learning
+# the ROR on a name match), or an :Organization:Virtual (carrying name/ror/country) for an unknown one — then
+# DELETE this staging. Public path: (:ResearchPaper)-[:AFFILIATED_WITH]->(:Organization {name, country, ror}).
+- name: ResearchInstitution
+  visibility: internal
+  userAnchor: false
+  description: "An institution affiliated with a paper, as reported by OpenAlex (raw, not a canonical Organization)."
+  properties:
+    id:
+      description: "OpenAlex institution id (a URL) — the staging node's identity."
+      metadata:
+        identity: "true"
+    display_name: "The institution's name as OpenAlex reports it."
+    ror: "The ROR id (a URL), when present — the strong institution identity key (the org's ORCID-equivalent)."
+    country_code: "ISO country code (e.g. CN, US) — enriched onto the resolved Organization as `country`."
+    wikidata: "Wikidata id, when present — a notable institution; the host PERSISTS a Wikidata-backed org as a real Organization. NOTE: OpenAlex's authorship-institution subset is slim and often omits this; populate it via the full institution or the Org→Wikidata reach."
+
+# NewsItem is the EXACT sibling of ResearchPaper: a virtual node fetched on demand, hung off the SAME
+# ResearchTopic anchor — but the source is Brave news, not OpenAlex. So every topic path that yields
+# papers also yields news, including the thread-distilled one:
+#   MATCH (p:Person {name:'X'})-[:RELEVANT_TO]->(t:RelevantEmailThread)
+#   MATCH (t)-[:HAS_TOPIC]->(topic:ResearchTopic)-[:HAS_NEWS]->(n:NewsItem)
+#   RETURN DISTINCT n.title, n.url, n.age
+# Identity is the article url; node-identity only (not canonicalized).
+- name: NewsItem
+  visibility: internal
+  userAnchor: false
+  description: >-
+    A news article for a topic, fetched on demand from Brave by SEARCHING a ResearchTopic's name. The topic
+    name IS the search query — combine every concept you want into the {name:'…'}; never fetch a broad topic
+    and then filter news by title text.
+  virtualJoins:
+    - anchorLabel: ResearchTopic
+      relationship: HAS_NEWS
+      keyField: name                 # ResearchTopic.name (the topic text) — SAME anchor as HAS_PAPER
+      recordKeyField: topicName      # stamped by the producer's echoKeyAs
+      producer: newsByTopic
+      description: >-
+        Recent news on a topic — same ResearchTopic anchor as HAS_PAPER (so 'news about what I discuss with X'
+        chains thread → topic → news). The topic name IS the search query: combine ALL desired concepts into
+        one ResearchTopic {name:'…'}; the source returns most-relevant first. NEVER fetch a broad topic and
+        then narrow news with a title predicate (e.g. `WHERE n.title CONTAINS …`) — narrow by what you search.
+  properties:
+    url:
+      description: "Article URL — the news item's identity."
+      metadata:
+        identity: "true"
+    title: "Headline."
+    description: "Snippet / summary of the article."
+    age: "Human-readable freshness, e.g. '2 days ago' (absent on undated results)."
+
+# ResearchTopic is reachable two ways:
+#  1. LITERAL: a query pins `{name:'…'}` and HAS_PAPER fetches papers (Phase 1, confirmed).
+#  2. DERIVED (Phase 3): the HAS_TOPIC join below distills it from an email thread's text via an LLM
+#     (the `distillTopics` compute producer → ThreadTopicDistiller), so "papers about what I discuss
+#     with X" chains thread → topic → paper as ONE legal-Cypher query:
+#       MATCH (p:Person {name:'X'})-[:RELEVANT_TO]->(t:RelevantEmailThread)
+#       MATCH (t)-[:HAS_TOPIC]->(topic:ResearchTopic)
+#       MATCH (topic)-[:HAS_PAPER]->(paper:ResearchPaper)
+#       RETURN DISTINCT paper.title, paper.url, topic.name
+#     The engine stages it: vector (threads) → LLM (topics) → OpenAlex (papers).
+# `name` is the identity so both the literal pin and the derived node resolve to one topic.
+- name: ResearchTopic
+  description: "A research area or topic of interest."
+  virtualJoins:
+    - anchorLabel: RelevantEmailThread
+      relationship: HAS_TOPIC
+      keyField: id                   # LINK by the thread's STABLE id (not the snippet text — survives the LLM)
+      recordKeyField: sourceId       # ThreadTopicDistiller echoes the thread id here
+      producerKeyFields: [id, snippet]  # the distiller gets `id<US>snippet`: reduces the snippet, echoes the id
+      producer: distillTopics
+      description: "research topics distilled (by an LLM) from an email thread's text — the bridge that makes 'papers about what I discuss with X' a single query (thread → topic → paper)."
+  properties:
+    name:
+      description: "Name of the topic — the search term papers are fetched for."
+      metadata:
+        identity: "true"
+    keywords: "Related keywords and terms."
 
 - name: ResearchRequest
   description: "A request to research a topic"

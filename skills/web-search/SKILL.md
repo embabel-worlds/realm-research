@@ -1,15 +1,20 @@
 ---
 name: web-search
-description: Web search workflows — Brave (current/general/news), Wikipedia (encyclopedic / stable knowledge), and fetch (read a specific URL). Activate this skill BEFORE any search-the-web call when the user asks to look something up, find information, get news, or check what something is.
+description: 'Web search workflows — Brave (current/general/news), Wikipedia (encyclopedic / stable knowledge), and fetch (read a specific URL). Activate ONLY for EXTERNAL information the user''s own knowledge graph does not cover — current events, news, or public reference facts about things/people that are NOT in the user''s world. Do NOT activate to identify someone the user knows — for "who is X" / "tell me about X", the knowledge graph comes first (find_entity) and a graph hit IS the answer; search the web only if the graph has no match.'
 ---
 
 # Web Search
 
 Three namespaces, picked by intent:
 
+> **First check the knowledge graph.** "Who is X" / "tell me about X" about a
+> person or org is a graph question (`find_entity`) — the user means *their*
+> contact, not a public namesake. Only use the web below when the graph has NO
+> match, or for an explicitly external topic.
+
 | Need | Namespace |
 |---|---|
-| General web / current info / "who is X" / "what is Y" | `gateway.brave.webSearch` |
+| External / public web info NOT in the user's graph; "what is &lt;public thing&gt;" | `gateway.brave.webSearch` |
 | News / headlines / recent events | `gateway.brave.newsSearch` |
 | Encyclopedic / stable knowledge (definitions, history, science) | `gateway.wikipedia.search` then `gateway.wikipedia.getSummary` |
 | Read a known URL (already in hand from search results, user, or memory) | `gateway.fetch.fetch` |

@@ -1,0 +1,36 @@
+# WikipediaArticle is a VIRTUAL node: the Wikipedia article for a Person, fetched on demand by searching
+# their name, materialized transiently, then DISAMBIGUATED to at most one per person by the host's
+# WikipediaResolver. Precision over recall: a non-notable contact who shares a name with someone famous is
+# linked to NOTHING (better than asserting they ARE the famous person). The kept edge carries `matchBasis`:
+#   - 'confirmed'    — the person has a learned wikidataId that pins the exact article;
+#   - 'corroborated' — the article's summary mentions an Organization the person WORKS_FOR.
+# When corroborated, the article's Wikidata id is LEARNED onto the Person, so next time it's an exact lookup.
+#
+#   MATCH (me:AssistantUser)-[:EMAILED]->(p:Person)-[:HAS_WIKIPEDIA]->(w:WikipediaArticle)
+#   RETURN p.name, w.extract, w.url
+- name: WikipediaArticle
+  visibility: internal
+  userAnchor: false
+  description: >-
+    The Wikipedia article about a person, fetched on demand and resolved to AT MOST ONE per person (the one
+    corroborated by an organization they work for, or a confirmed learned handle). Reach it from a person:
+    MATCH (p:Person)-[:HAS_WIKIPEDIA]->(w:WikipediaArticle) RETURN w.extract, w.url. A person with no notable,
+    corroborated article simply has no edge.
+  virtualJoins:
+    - anchorLabel: Person
+      relationship: HAS_WIKIPEDIA
+      keyField: name                 # Person.name → Wikipedia search query
+      recordKeyField: matchedName    # echoed onto each candidate by the producer's echoKeyAs
+      producer: wikipediaByName
+      description: >-
+        The Wikipedia article for a person, found by searching their name. The host keeps only the article
+        corroborated by what's known about the person (an org they work for) or a confirmed learned handle —
+        so a non-notable person is NOT linked to a famous namesake. Use for "who is X" / bio enrichment.
+  properties:
+    title:
+      description: "Wikipedia page title — the article's identity."
+      metadata:
+        identity: "true"
+    extract: "Plain-text lead-section summary of the article."
+    url: "Canonical Wikipedia URL."
+    wikidataId: "Wikidata Q-id when present — the stable handle the resolver learns onto the Person for exact future lookups."

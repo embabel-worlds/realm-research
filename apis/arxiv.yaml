@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  title: arXiv
+  description: >
+    The public arXiv e-print API — search and fetch scholarly papers (physics,
+    maths, CS, quantitative biology, statistics, economics). Free, no auth. The
+    response is an Atom 1.0 XML feed, NOT JSON: read each <entry> for the paper.
+  version: "1.0"
+
+servers:
+  - url: https://export.arxiv.org
+
+paths:
+  /api/query:
+    get:
+      operationId: searchArxiv
+      summary: "Search arXiv papers. Call: searchArxiv({ search_query: 'all:graph memory agent', max_results: 5 }). Returns an Atom XML feed."
+      description: >
+        Search arXiv for papers, or fetch specific papers by id. Pass EITHER
+        `search_query` (a search) OR `id_list` (exact arXiv ids).
+
+
+        search_query syntax — combine field-prefixed terms with AND / OR / ANDNOT:
+          all: (any field)   ti: (title)    au: (author)
+          abs: (abstract)    cat: (category, e.g. cs.AI, cs.LG, stat.ML)
+        Quote multi-word phrases. Examples:
+          all:graph-based memory for agents
+          ti:"retrieval augmented generation" AND cat:cs.CL
+          au:hinton AND abs:capsule
+        NOTE: bare spaces are treated as OR between terms, so for an AND/phrase
+        query be explicit (use AND, or quote the phrase).
+
+
+        RESPONSE IS ATOM XML, not JSON. Read each <entry>:
+          <title>            — paper title
+          <summary>          — abstract
+          <author><name>     — one per author
+          <published>        — first submission date (ISO-8601)
+          <updated>          — last revision date
+          <id>               — the abstract page URL (http://arxiv.org/abs/ID); cite THIS
+          <link title="pdf"> — the PDF URL (href attribute)
+          <category term=>   — subject categories; arxiv:primary_category is the main one
+        <opensearch:totalResults> gives the total match count (only max_results are returned).
+
+
+        Cite the <id> (abs page) URL for each paper you reference.
+      parameters:
+        - name: search_query
+          in: query
+          required: false
+          description: >
+            arXiv search query with field prefixes and boolean operators (see
+            above). Provide this OR id_list. Spaces are OR — use AND / quotes for
+            conjunction or phrases.
+          schema:
+            type: string
+        - name: id_list
+          in: query
+          required: false
+          description: >
+            Comma-separated arXiv ids (e.g. "2212.10496,1706.03762") to fetch
+            those exact papers instead of searching. Provide this OR search_query.
+          schema:
+            type: string
+        - name: start
+          in: query
+          description: 0-based offset into the result set (pagination).
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: max_results
+          in: query
+          description: Number of papers to return. Keep modest (arXiv asks for light use).
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+        - name: sortBy
+          in: query
+          description: Sort field. Use submittedDate / lastUpdatedDate for "latest", relevance otherwise.
+          schema:
+            type: string
+            enum: [relevance, lastUpdatedDate, submittedDate]
+            default: relevance
+        - name: sortOrder
+          in: query
+          description: Sort direction.
+          schema:
+            type: string
+            enum: [ascending, descending]
+            default: descending
+      responses:
+        "200":
+          description: An Atom 1.0 XML feed of matching papers (one <entry> per paper).
+          content:
+            application/atom+xml:
+              schema:
+                type: string
+                description: Atom XML feed — parse <entry> elements as described above.

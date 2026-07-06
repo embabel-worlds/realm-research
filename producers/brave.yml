@@ -1,0 +1,25 @@
+# Virtual-join producer over Brave news search (see specs/VIRTUAL_CYPHER.md). The EXACT sibling of
+# papersByTopic (OpenAlex) — same ResearchTopic anchor, same echoKeyAs link-back — but the source is
+# Brave's /news/search instead of OpenAlex /works. Needs BRAVE_API_KEY (apis/brave.yaml, api-key auth);
+# without it the brave API is skipped at load and this producer's HAS_NEWS join is hidden (graceful).
+#
+# newsByTopic: most-relevant recent news for a topic string. Brave results don't echo the query, so
+# `echoKeyAs: topicName` stamps the searched topic onto each record — the HAS_NEWS join matches the
+# ResearchTopic anchor by it. News is time-sensitive → short TTL cache, and a `freshness` window.
+- name: newsByTopic
+  kind: remote
+  operation: newsSearch             # GET /news/search (Brave)
+  records: "$.results[*]"
+  args:
+    q: "{keys}"                     # the topic string is injected here
+    count: 10
+    freshness: pm                   # past month — news relevance skews recent (tune: pd/pw/pm/py)
+  keyTemplate: "{key}"              # one topic per call → q=<topic>
+  echoKeyAs: topicName              # stamp the queried topic onto each news record
+  cache:
+    kind: ttl
+    seconds: 3600                   # news changes — cache an hour, not a day
+  cost:
+    bucket: "brave"
+    rate: "1/sec"                   # Brave free tier ~1 req/s
+    yield: high

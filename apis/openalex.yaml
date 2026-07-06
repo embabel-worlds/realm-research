@@ -1,0 +1,106 @@
+openapi: 3.0.3
+info:
+  title: OpenAlex
+  description: >
+    OpenAlex — a free, open catalog of the global scholarly record (~250M works,
+    incl. arXiv preprints and their published versions). No auth; send a `mailto`
+    for the faster "polite pool". JSON responses. Used here to materialize papers
+    as queryable graph nodes (the ResearchPaper virtual join).
+  version: "1.0"
+
+servers:
+  - url: https://api.openalex.org
+
+components:
+  schemas:
+    Work:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Canonical OpenAlex work id (a URL, e.g. https://openalex.org/W123) — the node identity.
+        title:
+          type: string
+        publication_date:
+          type: string
+          description: ISO-8601 publication date.
+        doi:
+          type: string
+        cited_by_count:
+          type: integer
+        relevance_score:
+          type: number
+          description: Search relevance (present on `search=` queries) — higher is more relevant.
+        type:
+          type: string
+          description: Work type (article, preprint, dataset, …).
+    WorksResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            count:
+              type: integer
+              description: Total number of matching works (only per_page are returned).
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Work'
+
+paths:
+  /works:
+    get:
+      operationId: searchWorks
+      summary: "Search scholarly works on OpenAlex. Call: searchWorks({ search: 'graph memory agents', per_page: 25 })."
+      description: >
+        Full-text relevance search across titles, abstracts and full text. Returns
+        works ordered by relevance, each with a relevance_score. Combine with
+        `filter` for structured constraints (e.g. from_publication_date:2024-01-01,
+        authorships.author.id:Axxxx). JSON response — results are under `results[]`.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Free-text query matched across title, abstract and full text.
+          schema:
+            type: string
+        - name: filter
+          in: query
+          required: false
+          description: >
+            Structured filter, comma-separated key:value (AND). Examples:
+            from_publication_date:2024-01-01 ; authorships.institutions.ror:https://ror.org/XXXX ;
+            type:article. Use for date / author / institution / OA constraints.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: "Sort field, e.g. relevance_score:desc, cited_by_count:desc, publication_date:desc."
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Results per page (max 200). Keep modest.
+          schema:
+            type: integer
+            default: 25
+            maximum: 200
+        - name: page
+          in: query
+          description: 1-based page number (for the first ~10k results).
+          schema:
+            type: integer
+            default: 1
+        - name: mailto
+          in: query
+          description: Contact email for OpenAlex's faster "polite pool".
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorksResponse'

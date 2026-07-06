@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: Wikidata Query Service
+  description: >
+    Wikidata's public SPARQL endpoint (no auth). Used to resolve an Organization to its Wikidata entity
+    BY DOMAIN — the query filters on official website (P856), so disambiguation happens at the source (no
+    name-search + corroboration needed). Returns the entity's scalar facts; the host's existing
+    canonicalization projects them onto the Organization spine (the type declares `hub: Organization`).
+  version: "1.0"
+
+servers:
+  - url: https://query.wikidata.org
+
+paths:
+  /sparql:
+    get:
+      operationId: sparqlQuery
+      summary: "Run a SPARQL query against Wikidata. Call: sparqlQuery({ query: '...', format: 'json' })."
+      description: >
+        Returns JSON under `results.bindings[]`, each binding a map of var -> { value }. The
+        organization-by-domain query filters on P856 (official website) so it returns at most the one
+        entity whose site matches the domain.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: The SPARQL query string.
+          schema: { type: string }
+        - name: format
+          in: query
+          required: true
+          schema: { type: string, default: json }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: object
+                    properties:
+                      bindings:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties:
+                            type: object
+                            properties:
+                              value: { type: string }
