@@ -38,3 +38,17 @@
   auth: none
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
+
+# YouTube Data API v3 (search) — vendored OpenAPI spec, API-key auth. NOT an MCP
+# server. One operation, `searchYouTubeVideos` (→ gateway.youtube.searchYouTubeVideos),
+# a free-text video search — general enough to belong here in the research pack rather
+# than any one consumer. pack-impromptu depends on it for classical-work recordings.
+# YOUTUBE_API_KEY is read from the workspace credential store first, then process env;
+# a missing key => the API is skipped at load time.
+- url: youtube.yaml
+  name: youtube
+  type: openapi
+  auth: api-key
+  token-env: YOUTUBE_API_KEY
+  operation-ids:
+    - searchYouTubeVideos

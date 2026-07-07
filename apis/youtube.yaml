@@ -1,0 +1,145 @@
+openapi: 3.0.3
+info:
+  title: YouTube Data API v3 (search)
+  description: >
+    The `search.list` slice of the YouTube Data API v3 — a free-text video search,
+    vendored as an OpenAPI spec (NOT an MCP server). Returns candidate videos for a
+    query: use it to find recordings, talks, lectures, or clips on YouTube.
+
+
+    The single operation is `searchYouTubeVideos` (→ `gateway.youtube.searchYouTubeVideos`).
+    Pass the search text as `q`, restricted to embeddable videos. Each item's
+    `id.videoId` plus `snippet` (title, channelTitle, description, thumbnails) is enough
+    to present and link a result; build the watch URL from the id —
+    `https://www.youtube.com/watch?v=` + item.id.videoId (there is no url field).
+    `search.list` does NOT return duration — that needs a follow-up `videos.list`.
+
+
+    Auth: an API key in the `key` query parameter (declared as `ApiKeyAuth`,
+    `apiKey in: query name: key`), so OpenApiLearner injects it automatically. Get a key
+    from https://console.cloud.google.com/apis/credentials with the "YouTube Data API v3"
+    enabled, and set it in the `YOUTUBE_API_KEY` env var on the assistant process — a
+    deployment-level key (one Google Cloud project), not per-user OAuth.
+  version: 1.0.0
+  contact:
+    name: YouTube Data API
+    url: https://developers.google.com/youtube/v3/docs/search/list
+servers:
+  - url: https://www.googleapis.com/youtube/v3
+security:
+  - ApiKeyAuth: []
+paths:
+  /search:
+    get:
+      operationId: searchYouTubeVideos
+      summary: Search YouTube for videos matching a free-text query.
+      description: >
+        Returns up to `maxResults` videos matching `q`, by relevance. Set `type=video` and
+        `videoEmbeddable=true` so every hit can be played in-app. Each item's `id.videoId`
+        and `snippet` is enough to present and link a video; build the watch URL from the
+        video id.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: >
+            Free-text search, e.g. 'Beethoven Symphony no. 5 Karajan' or 'Feynman lectures
+            physics'. Add a performer/creator to narrow.
+          schema:
+            type: string
+        - name: part
+          in: query
+          required: true
+          description: Resource parts to return. Always 'snippet'.
+          schema:
+            type: string
+            default: snippet
+            enum: [snippet]
+        - name: type
+          in: query
+          required: false
+          description: Restrict results to a resource type. Use 'video' for playable results.
+          schema:
+            type: string
+            default: video
+            enum: [video, channel, playlist]
+        - name: videoEmbeddable
+          in: query
+          required: false
+          description: "'true' returns only videos that can be embedded/played in-app. Only valid with type=video."
+          schema:
+            type: string
+            default: "true"
+            enum: ["true", any]
+        - name: maxResults
+          in: query
+          required: false
+          description: Number of results, 1–50. Default 8.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 8
+      responses:
+        "200":
+          description: A page of search results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchListResponse"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: key
+  schemas:
+    SearchListResponse:
+      type: object
+      properties:
+        kind:
+          type: string
+        regionCode:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchResult"
+    SearchResult:
+      type: object
+      properties:
+        id:
+          type: object
+          properties:
+            kind:
+              type: string
+              description: e.g. 'youtube#video'.
+            videoId:
+              type: string
+              description: The video id. Watch URL = https://www.youtube.com/watch?v=<videoId>.
+        snippet:
+          type: object
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            channelTitle:
+              type: string
+              description: The uploading channel — often the label, orchestra, performer, or creator.
+            publishedAt:
+              type: string
+              format: date-time
+            thumbnails:
+              type: object
+              properties:
+                medium:
+                  type: object
+                  properties:
+                    url:
+                      type: string
+                      format: uri
+                    width:
+                      type: integer
+                    height:
+                      type: integer
