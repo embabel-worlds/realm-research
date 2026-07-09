@@ -88,6 +88,15 @@
     authorNames: "Author display names (a list) — a quick read of who wrote it; the resolved authors are the AUTHORED_BY Persons."
     # abstract is intentionally absent in Phase 1 (OpenAlex returns it as an inverted index needing
     # reconstruction). Authors ARE projected now — promoted to AUTHORED_BY → Person (see the brings above).
+  examples:
+    # STEERING — "authors of papers on X": read the projected `authorNames` list on the paper.
+    # An AUTHORED_BY edge-walk in the same query as the fetch returns empty (authors resolve
+    # AFTER the papers arrive); the scalar is always present.
+    - q: "list the authors of the last 5 papers on quantum error correction"
+      cypher: |
+        MATCH (t:ResearchTopic {name:'quantum error correction'})-[:HAS_PAPER]->(p:ResearchPaper)
+        RETURN p.title AS title, p.authorNames AS authors
+        ORDER BY p.publishedDate DESC LIMIT 5
 
 # ResearchAuthor: INTERNAL STAGING. A paper's raw OpenAlex author, brought transiently so the host's
 # AuthorPersonLinker can PROMOTE it to a Person hung off the paper by AUTHORED_BY — the REAL Person you know
