@@ -76,8 +76,27 @@ Brave snippets are short. If the user wants depth, fetch the URL:
 const r = await gateway.brave.webSearch({ q: "embabel agent framework", count: 3 });
 const top = r.web.results[0];
 const body = await gateway.fetch.fetch({ url: top.url });
-// body is markdown-converted page text
+// body is markdown-converted page text, ending with a "## Links on this page" section
 ```
+
+## Pattern: thin page → crawl the site
+
+When a landing page is a shell ("click to explore", a nav menu and no
+content), the substance is BEHIND its links. Don't report the shell — crawl
+in ONE call:
+
+```javascript
+const site = await gateway.fetch.crawl({
+  url: "https://example.org/",
+  hint: "history opening hours visiting",  // steers which links are followed
+  max_pages: 5,
+});
+// site is the text of the landing page plus its most relevant same-site
+// pages, separated by ---. Answer from it; cite each page you used.
+```
+
+For a single known URL use `fetch` — its result still ends with a
+"## Links on this page" section if you need one specific follow-up.
 
 ## Citing
 
