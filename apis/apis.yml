@@ -22,6 +22,11 @@
 # Brave Search — vendored OpenAPI spec, API-key auth.
 # BRAVE_API_KEY is read from the workspace credential store first,
 # then process env. Missing key => the API is skipped at load time.
+# The default workspace vendors the same spec under the same `brave`
+# name (config/apis/web-search.yml) so web search works without this
+# pack; the loader dedupes by URL so both entries load, and the
+# workspace-tier entry wins the shared namespace. Keep the two copies
+# of brave.yaml identical.
 - url: brave.yaml
   name: brave
   type: openapi
