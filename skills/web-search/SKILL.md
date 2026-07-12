@@ -1,9 +1,13 @@
 ---
 name: web-search
-description: 'Web search workflows — Brave (current/general/news), Wikipedia (encyclopedic / stable knowledge), and fetch (read a specific URL). Activate ONLY for EXTERNAL information the user''s own knowledge graph does not cover — current events, news, or public reference facts about things/people that are NOT in the user''s world. Do NOT activate to identify someone the user knows — for "who is X" / "tell me about X", the knowledge graph comes first (find_entity) and a graph hit IS the answer; search the web only if the graph has no match.'
+description: 'Web search workflows — you CAN search the live public web: Brave (current/general/news), Wikipedia (encyclopedic / stable knowledge), and fetch (read a specific URL). NEVER tell the user you cannot search the web. ACTIVATE this skill whenever the user asks to search the web or look something up online, and for any external current information the user''s own knowledge graph does not cover — it returns the gateway methods and rules; you MUST then RUN the search with execute and answer from its results. One exception: "who is X" / "tell me about X" about someone the user may know is a graph question — the knowledge graph comes first (find_entity) and a graph hit IS the answer; search the web only if the graph has no match or the topic is explicitly external.'
 ---
 
 # Web Search
+
+You can search the live public web. Never tell the user you can't — an
+explicit "search the web for X" always means run a search with the tools
+below and answer from the results.
 
 Three namespaces, picked by intent:
 
