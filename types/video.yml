@@ -1,0 +1,76 @@
+# Video types: YouTubeVideo (a video found by searching a topic) and VideoTranscript (its
+# transcript, fetched on demand via Supadata). Both VIRTUAL — materialized transiently when
+# a query traverses to them, never stored.
+#
+# YouTubeVideo is the third sibling off the ResearchTopic anchor (HAS_PAPER → papers,
+# HAS_NEWS → news, HAS_VIDEO → videos): the topic name IS the YouTube search query.
+# VideoTranscript hangs one hop further, keyed by the video's id, so the full chain is one
+# query:
+#   MATCH (t:ResearchTopic {name:'attention is all you need'})-[:HAS_VIDEO]->(v:YouTubeVideo)
+#   MATCH (v)-[:HAS_TRANSCRIPT]->(tr:VideoTranscript)
+#   RETURN v.title, v.channel, tr.text
+# Works with no captions simply have no HAS_TRANSCRIPT edge (Supadata returns
+# transcript-unavailable and the producer yields no record).
+#
+# Any OTHER pack whose nodes carry a YouTube `videoId` (e.g. pack-impromptu's
+# MusicalRecording) can reach transcripts the same way: declare its own HAS_TRANSCRIPT
+# join keyed on videoId and a producer over `gateway.supadata.getVideoTranscript` — this
+# pack deliberately doesn't anchor on labels it doesn't own.
+
+- name: YouTubeVideo
+  visibility: internal
+  userAnchor: false
+  description: >-
+    A YouTube video, fetched on demand by SEARCHING a ResearchTopic's name. The topic name IS the search
+    query — combine every concept you want into the {name:'…'}; never fetch a broad topic and then filter
+    videos by title text. Watch URL = 'https://www.youtube.com/watch?v=' + videoId. Its transcript is one
+    hop further: (v:YouTubeVideo)-[:HAS_TRANSCRIPT]->(tr:VideoTranscript).
+  virtualJoins:
+    - anchorLabel: ResearchTopic
+      relationship: HAS_VIDEO
+      keyField: name                 # ResearchTopic.name (the topic text) — SAME anchor as HAS_PAPER/HAS_NEWS
+      recordKeyField: topicName      # stamped onto each hit by the producer's echoKeyAs
+      producer: videosByTopic
+      description: >-
+        YouTube videos on a topic — same ResearchTopic anchor as HAS_PAPER and HAS_NEWS (so talks, lectures
+        and explainers sit beside papers and news for any topic). The topic name IS the search query:
+        combine ALL desired concepts into one ResearchTopic {name:'…'}; results come most-relevant first.
+        NEVER fetch a broad topic and then narrow videos with a title predicate — narrow by what you search.
+  properties:
+    videoId:
+      description: "YouTube video id, e.g. 'dQw4w9WgXcQ' — the identity key. Watch URL = 'https://www.youtube.com/watch?v=' + videoId."
+      metadata:
+        identity: "true"
+    title: "The video's title."
+    channel: "The uploading channel — often the creator, institution, or conference."
+    description: "The video description snippet (search returns a truncated form)."
+    thumbnail: "URL of the video's thumbnail image."
+    publishedAt: "ISO-8601 timestamp the video was published."
+
+- name: VideoTranscript
+  visibility: internal
+  userAnchor: false
+  description: >-
+    The TRANSCRIPT of a YouTubeVideo — the full spoken text, fetched on demand from existing captions
+    (manual or auto-generated) when a query traverses HAS_TRANSCRIPT. Reach it from a video:
+    MATCH (v:YouTubeVideo)-[:HAS_TRANSCRIPT]->(tr:VideoTranscript) RETURN tr.text. A video with no
+    captions has no edge (a plain MATCH filters to videos you can actually read). `text` can be tens of
+    thousands of characters — summarize or extract from it rather than returning it verbatim unless asked.
+  virtualJoins:
+    - anchorLabel: YouTubeVideo
+      relationship: HAS_TRANSCRIPT
+      keyField: videoId              # the video's id — the producer builds the watch URL from it
+      recordKeyField: videoId        # stamped onto the transcript by the producer's echoKeyAs
+      producer: transcriptForVideo
+      description: >-
+        The video's transcript (full spoken text, from existing captions). Videos with no captions simply
+        have no edge. The text is LONG — read it to answer questions about what's said in the video
+        ("what does this talk claim about X?", "summarize this lecture") rather than echoing it whole.
+  properties:
+    videoId:
+      description: "The YouTube video id this transcript belongs to — the identity key, and the HAS_TRANSCRIPT link back to its YouTubeVideo."
+      metadata:
+        identity: "true"
+    text: "The full transcript as plain text. Often very long — extract or summarize, don't echo."
+    language: "ISO 639-1 language code of the transcript, e.g. 'en'."
+    availableLanguages: "All language codes the video has transcripts in (a list)."

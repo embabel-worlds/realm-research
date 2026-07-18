@@ -57,3 +57,20 @@
   token-env: YOUTUBE_API_KEY
   operation-ids:
     - searchYouTubeVideos
+
+# Supadata — vendored OpenAPI spec, API-key auth (x-api-key header, like Brave's
+# X-Subscription-Token). Two ops: `getVideoTranscript` (the transcript of a YouTube /
+# TikTok / Instagram / X / Facebook video — the OFFICIAL YouTube Data API cannot do this:
+# captions.download is OAuth + video-owner-only) and `getMediaMetadata` (unified metadata
+# incl. video DURATION, which YouTube search.list doesn't return). Powers the
+# HAS_TRANSCRIPT virtual join (types/video.yml, producers/video.yml).
+# SUPADATA_API_KEY is read from the workspace credential store first, then process env;
+# a missing key => the API is skipped at load time and transcript joins are hidden.
+- url: supadata.yaml
+  name: supadata
+  type: openapi
+  auth: api-key
+  token-env: SUPADATA_API_KEY
+  operation-ids:
+    - getVideoTranscript
+    - getMediaMetadata

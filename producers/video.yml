@@ -1,0 +1,67 @@
+# Virtual-join producers for the video types (types/video.yml) — see specs/VIRTUAL_CYPHER.md.
+#
+#   videosByTopic      remote  HAS_VIDEO      — YouTube search for videos on a topic
+#   transcriptForVideo remote  HAS_TRANSCRIPT — the transcript of a video, via Supadata
+#
+# videosByTopic is the video sibling of papersByTopic (OpenAlex) and newsByTopic (Brave):
+# the SAME ResearchTopic anchor, the SAME echoKeyAs link-back, but over this pack's own
+# YouTube Data API search slice (apis/youtube.yaml — needs YOUTUBE_API_KEY). It mirrors
+# pack-impromptu's recordingsByWork, which anchors the same op on MusicalWork instead.
+- name: videosByTopic
+  kind: remote
+  operation: searchYouTubeVideos    # GET /search (YouTube Data API v3, apis/youtube.yaml)
+  records: "$.items[*]"
+  args:
+    q: "{keys}"                     # the topic string is injected here
+    part: "snippet"
+    type: "video"
+    videoEmbeddable: "true"
+    maxResults: 8
+  keyTemplate: "{key}"              # one topic per call → q=<topic>
+  echoKeyAs: topicName              # stamp the searched topic onto each hit (the HAS_VIDEO link key)
+  project:
+    videoId: "id.videoId"
+    title: "snippet.title"
+    channel: "snippet.channelTitle"
+    description: "snippet.description"
+    thumbnail: "snippet.thumbnails.medium.url"
+    publishedAt: "snippet.publishedAt"
+  cache:
+    kind: ttl
+    seconds: 604800                 # 7 days — the top videos for a topic are stable
+  cost:
+    bucket: "youtube"
+    yield: high
+
+# transcriptForVideo: the transcript of ONE video, via Supadata (apis/supadata.yaml — needs
+# SUPADATA_API_KEY; without it the API is skipped at load and HAS_TRANSCRIPT is hidden).
+# The official YouTube Data API cannot do this (captions.download is OAuth + video-owner-only).
+#
+# Keyed by the video's id; the watch URL is built in the arg template. `mode=native` keeps the
+# call synchronous (existing captions only — never an async AI-generation job, never surprise
+# credit burn) and `text=true` returns one plain string. A video with NO captions returns
+# HTTP 206 transcript-unavailable → no record → no edge (graceful). One url per call, so
+# batchSafe: false (same as pack-movie's movieByImdbId); the long cache makes repeats free —
+# a published video's captions are effectively immutable.
+- name: transcriptForVideo
+  kind: remote
+  operation: getVideoTranscript     # GET /transcript (Supadata)
+  records: "$"                      # one transcript object per call
+  args:
+    url: "https://www.youtube.com/watch?v={keys}"
+    text: "true"
+    mode: "native"
+  keyTemplate: "{key}"              # one videoId per call
+  batchSafe: false                  # the url arg carries exactly one id — never space-join a batch
+  echoKeyAs: videoId                # stamp the queried id onto the transcript (identity + link key)
+  project:
+    text: content
+    language: lang
+    availableLanguages: availableLangs
+  cache:
+    kind: ttl
+    seconds: 2592000                # 30 days — captions on a published video don't change
+  cost:
+    bucket: "supadata"
+    rate: "1/sec"                   # free tier is 100 req/month — the cache is doing the real work
+    yield: high

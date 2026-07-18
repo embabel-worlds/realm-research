@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: Supadata (video transcripts + media metadata)
+  description: >
+    Two operations from the Supadata API (https://docs.supadata.ai), vendored as a narrow
+    OpenAPI spec (NOT an MCP server): `getVideoTranscript` — the transcript of a video on
+    YouTube, TikTok, Instagram, X (Twitter) or Facebook — and `getMediaMetadata` — unified
+    metadata (title, author, stats, duration) for a post/video on any of those platforms.
+
+
+    Supadata reads existing captions (manual or auto-generated); with `mode=native` the
+    call is synchronous and never burns AI-generation credits. `mode=auto`/`generate` can
+    fall back to AI speech-to-text but may return a jobId for asynchronous processing
+    instead of a transcript — the vendored slice pins `native` for predictable, single-call
+    behaviour. A video with no captions returns HTTP 206 `transcript-unavailable`.
+
+
+    Auth: an API key in the `x-api-key` header (declared as `ApiKeyAuth`), injected
+    automatically by OpenApiLearner. Get a key at https://supadata.ai (free tier: 100
+    requests/month) and set it in the `SUPADATA_API_KEY` env var on the assistant process —
+    a deployment-level key, not per-user OAuth.
+  version: 1.0.0
+  contact:
+    name: Supadata API
+    url: https://docs.supadata.ai
+servers:
+  - url: https://api.supadata.ai/v1
+security:
+  - ApiKeyAuth: []
+paths:
+  /transcript:
+    get:
+      operationId: getVideoTranscript
+      summary: Get the transcript of a video by its URL.
+      description: >
+        Returns the transcript of a video hosted on YouTube, TikTok, Instagram, X (Twitter)
+        or Facebook. Pass the video's full URL (for YouTube, build it from a video id:
+        'https://www.youtube.com/watch?v=' + videoId). Set `text=true` for one plain-text
+        string (best for reading/summarizing); omit it for timestamped chunks. Keep
+        `mode=native` (existing captions only, synchronous). A video with no captions
+        returns HTTP 206 with error `transcript-unavailable` — report that the video has
+        no transcript rather than retrying.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          description: >
+            Full video URL on a supported platform, e.g.
+            'https://www.youtube.com/watch?v=dQw4w9WgXcQ' or
+            'https://www.tiktok.com/@user/video/1234567890'.
+          schema:
+            type: string
+            format: uri
+        - name: text
+          in: query
+          required: false
+          description: "'true' returns the whole transcript as one plain-text string; 'false' (default) returns timestamped chunks."
+          schema:
+            type: string
+            default: "true"
+            enum: ["true", "false"]
+        - name: mode
+          in: query
+          required: false
+          description: >
+            Transcript mode. Always use 'native' (fetch existing captions, synchronous).
+            'auto'/'generate' fall back to AI speech-to-text but may return a jobId for
+            async processing instead of a transcript, and consume far more credits.
+          schema:
+            type: string
+            default: native
+            enum: [native, auto, generate]
+        - name: lang
+          in: query
+          required: false
+          description: "Preferred ISO 639-1 language code, e.g. 'en'. Omitted = the first available language."
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The transcript.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transcript"
+        "206":
+          description: "Transcript unavailable — the video has no captions (error code 'transcript-unavailable')."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /metadata:
+    get:
+      operationId: getMediaMetadata
+      summary: Get unified metadata for a video or post by its URL.
+      description: >
+        Returns unified metadata for media on YouTube, TikTok, Instagram, X (Twitter) or
+        Facebook: title, description, author, engagement stats (views/likes/comments), and
+        for videos the duration in seconds — which YouTube search results do NOT include,
+        so call this to check a video's length before recommending it.
+      parameters:
+        - name: url
+          in: query
+          required: true
+          description: "Full URL of the video/post, e.g. 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'."
+          schema:
+            type: string
+            format: uri
+      responses:
+        "200":
+          description: Unified media metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Metadata"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+  schemas:
+    Transcript:
+      type: object
+      properties:
+        content:
+          description: "The transcript: one plain-text string when text=true, else an array of timestamped chunks."
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                $ref: "#/components/schemas/TranscriptChunk"
+        lang:
+          type: string
+          description: ISO 639-1 language code of the returned transcript.
+        availableLangs:
+          type: array
+          items:
+            type: string
+          description: All language codes a transcript is available in.
+    TranscriptChunk:
+      type: object
+      properties:
+        text:
+          type: string
+        offset:
+          type: number
+          description: Start time in milliseconds.
+        duration:
+          type: number
+          description: Chunk length in milliseconds.
+        lang:
+          type: string
+    Metadata:
+      type: object
+      properties:
+        platform:
+          type: string
+          description: "'youtube', 'tiktok', 'instagram', 'twitter' or 'facebook'."
+        id:
+          type: string
+          description: The platform's media id, e.g. a YouTube video id.
+        url:
+          type: string
+          description: Canonical URL of the media.
+        title:
+          type: string
+        description:
+          type: string
+        author:
+          type: object
+          properties:
+            username:
+              type: string
+            displayName:
+              type: string
+            verified:
+              type: boolean
+        stats:
+          type: object
+          properties:
+            views:
+              type: number
+            likes:
+              type: number
+            comments:
+              type: number
+        media:
+          type: object
+          description: For a video — duration and thumbnail.
+          properties:
+            type:
+              type: string
+              description: "'video', 'image' or 'carousel'."
+            duration:
+              type: number
+              description: Video duration in seconds.
+            thumbnailUrl:
+              type: string
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: "Error code, e.g. 'transcript-unavailable', 'not-found', 'limit-exceeded'."
+        message:
+          type: string
+        details:
+          type: string
