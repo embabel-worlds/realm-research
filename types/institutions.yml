@@ -22,8 +22,11 @@
     country: "Country the registry records for the institution."
     score: { type: number, description: "Match confidence from 0 to 1. Below a clean match this is a guess; say so rather than presenting it as resolved." }
     chosen: { type: boolean, description: "Whether the registry's own matcher considers this a confident match. False means the top candidate was returned without conviction." }
-    relationshipTypes: { cardinality: LIST, description: "Kinds of related organization — 'parent', 'child', 'related' — positionally aligned with relationshipNames." }
-    relationshipNames: { cardinality: LIST, description: "Names of the related organizations, aligned with relationshipTypes. The entry whose type is 'parent' is the wider body a hospital or institute belongs to." }
+    officialName: "The registry's own display name for the institution, which is often not the name the source record used."
+    parent: "The wider body this institution belongs to — a hospital's health network, an institute's university. Absent when the registry records none, which means the institution stands alone."
+    parentRorId: "Registry identifier for that parent, so the wider body can be resolved in its own right."
+    kinds: { cardinality: LIST, description: "What kind of organization the registry considers it — education, healthcare, facility, funder." }
+    established: { type: int, description: "Year founded, when the registry records it." }
   virtualJoins:
     # The general edge: any organization already in the graph can be canonicalized.
     - anchorLabel: Organization

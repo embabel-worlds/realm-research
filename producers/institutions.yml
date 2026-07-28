@@ -5,28 +5,19 @@
 # for exactly this input — human-typed institution text — and returns a match SCORE, so a weak match can
 # be shown as weak instead of being presented with the same confidence as an exact one.
 
+# A realm handler rather than a direct call, for two things a flat projection cannot express:
+#   - the registry's DISPLAY name. Names arrive unordered and include acronyms and local-language
+#     forms, so reading the first one yields "MGH" as often as the real name.
+#   - the PARENT. Parents, children and related organizations share one array, and selecting the parent
+#     needs a filter. Projecting types and labels as parallel lists is lossless but pushes that
+#     filtering onto every consumer, in Cypher, forever.
+# The handler also keeps going when one name fails, so a single bad affiliation string cannot read as
+# "none of these institutions are known".
 - name: institutionsByName
   kind: remote
-  operation: matchAffiliation
-  keyArg: affiliation
-  # ROR matches ONE affiliation string per call, and the response doesn't echo it — so the queried name
-  # is stamped onto the record, which also pins the call to one key. Institution counts are small
-  # (a landscape has tens of distinct sites, not thousands), so this stays cheap.
-  echoKeyAs: name
-  # Best match only. The response is ordered by score, so index 0 is ROR's own top candidate; keeping
-  # the rest would materialize three plausible institutions where the record named one.
-  records: "$.items.0"
-  project:
-    rorId: organization.id
-    country: organization.locations.0.geonames_details.country_name
-    score: score
-    chosen: chosen
-    # Relationship type and label flatten in the same order, so index i of one lines up with index i of
-    # the other. Two parallel lists rather than one nested structure because a materialized property is
-    # a scalar or a list of scalars — a consumer reads the position of 'parent' in `relationshipTypes`
-    # and takes the name at that position in `relationshipNames`.
-    relationshipTypes: organization.relationships[*].type
-    relationshipNames: organization.relationships[*].label
+  operation: matchInstitutions
+  keyArg: names
+  records: "$[*]"
   cache:
     kind: ttl
     seconds: 604800   # a week — institutional identity is stable
