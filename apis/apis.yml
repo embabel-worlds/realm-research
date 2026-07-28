@@ -44,6 +44,17 @@
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
 
+# Wikidata Query Service — public SPARQL, no auth, no key.
+# Backs the CorporateEntity join: a company name resolves to its Wikidata entity and,
+# through the parent-organization chain, to its ultimate owner. Same Wikimedia
+# User-Agent rule as Wikipedia above — a request without one is refused with a 403.
+- url: wikidata.yaml
+  name: wikidata
+  type: openapi
+  auth: none
+  headers:
+    User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
+
 # YouTube Data API v3 (search) — vendored OpenAPI spec, API-key auth. NOT an MCP
 # server. One operation, `searchYouTubeVideos` (→ gateway.youtube.searchYouTubeVideos),
 # a free-text video search — general enough to belong here in the research pack rather

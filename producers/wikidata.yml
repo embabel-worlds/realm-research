@@ -1,0 +1,77 @@
+# Virtual-join producer over the Wikidata Query Service. Given company NAMES, it returns each one's
+# Wikidata entity together with the ULTIMATE OWNER reached through the parent-organization chain.
+#
+# Why a graph query rather than a per-name lookup: ownership is a CHAIN, not a field. A subsidiary of a
+# subsidiary ("Janssen Biotech" → "Janssen Pharmaceutica" → its ultimate parent) needs the whole path
+# walked, and SPARQL walks it in the source with a property path (`wdt:P749+`) instead of costing one
+# round trip per level. The same query resolves many names at once through a VALUES block, so a landscape
+# with 300 distinct sponsors takes a handful of calls rather than 300.
+#
+# Ownership here is a FACT read from a public registry, never a model's recollection. A name Wikidata
+# doesn't know simply returns no row: the organization keeps its own name and no owner is asserted. That
+# absence is the honest answer and is reported as an unresolved count by consumers — inventing a parent,
+# or letting a model guess one, would silently merge companies that are not related.
+
+- name: companiesByName
+  kind: remote
+  operation: sparqlQuery
+  # Each key becomes an English-tagged literal in the VALUES block. The tag is required: Wikidata labels
+  # are language-tagged, and an untagged "Pfizer" matches nothing at all.
+  keyTemplate: '"{key}"@en'
+  keyJoin: " "
+  # One SPARQL query covers a batch. Kept well under the service's query-length and 60s timeout limits.
+  maxKeysPerCall: 40
+  args:
+    format: json
+    # Aggregated to ONE row per name. Without the grouping, a company with several industries or
+    # tickers returns the cartesian product of its optional facts — four identical-looking rows for
+    # Pfizer — and the extra rows carry no information.
+    #
+    # MIN rather than SAMPLE for the entity: names are not unique in the registry, and an arbitrary
+    # pick would make the same question answer differently on different days. `candidates` reports how
+    # many entities carried the name, so an ambiguous match is visible instead of being presented with
+    # the same confidence as an unambiguous one.
+    query: |
+      SELECT ?matched
+             (MIN(?org) AS ?entity)
+             (COUNT(DISTINCT ?org) AS ?candidates)
+             (SAMPLE(?ownerName) AS ?owner)
+             (SAMPLE(?countryName) AS ?country)
+             (SAMPLE(?industryName) AS ?industry)
+             (SAMPLE(?inceptionV) AS ?inception)
+             (SAMPLE(?tickerV) AS ?ticker)
+      WHERE {
+        VALUES ?matched { {keys} }
+        ?org rdfs:label ?matched .
+        ?org wdt:P31/wdt:P279* wd:Q43229 .
+        OPTIONAL {
+          ?org wdt:P749+ ?owner0 .
+          FILTER NOT EXISTS { ?owner0 wdt:P749 ?higher }
+          ?owner0 rdfs:label ?ownerName . FILTER(lang(?ownerName) = "en")
+        }
+        OPTIONAL { ?org wdt:P17 ?c . ?c rdfs:label ?countryName . FILTER(lang(?countryName) = "en") }
+        OPTIONAL { ?org wdt:P452 ?i . ?i rdfs:label ?industryName . FILTER(lang(?industryName) = "en") }
+        OPTIONAL { ?org wdt:P571 ?inceptionV }
+        OPTIONAL { ?org wdt:P249 ?tickerV }
+      }
+      GROUP BY ?matched
+  records: "$.results.bindings[*]"
+  # SPARQL bindings are `{var: {value: …}}`, so every field is lifted to a flat scalar. `name` echoes the
+  # queried literal back, which is what the join links on — no per-key call is needed to stamp it, so the
+  # batch survives.
+  project:
+    name: matched.value
+    wikidataId: entity.value
+    ultimateOwner: owner.value
+    country: country.value
+    industry: industry.value
+    inception: inception.value
+    ticker: ticker.value
+    candidates: candidates.value
+  cache:
+    kind: ttl
+    seconds: 604800   # a week — corporate ownership changes on the timescale of deals, not queries
+  cost:
+    bucket: wikidata
+    rate: "1/sec"     # WDQS is a shared free service; stay well inside polite use
+    yield: high

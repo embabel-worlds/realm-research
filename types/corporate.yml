@@ -1,0 +1,41 @@
+# A company's public registry profile, and the owner it ultimately rolls up to.
+#
+# This is deliberately GENERAL. Any realm with organization names — trial sponsors, invoice issuers,
+# employers, conference hosts — gets the same roll-up by declaring its own edge into this type, and the
+# resolution lives here once rather than being reimplemented per domain. The engine keeps every declared
+# edge into a type, including edges declared by other realms, so a domain realm contributes only the hop
+# from its own anchor.
+
+- name: CorporateEntity
+  userAnchor: false
+  description: |
+    A company as a public registry records it, with the ultimate parent reached by walking the
+    ownership chain. Resolved on demand and never mirrored: a name that cannot be resolved yields no
+    node at all, which is why consumers report an unresolved count rather than showing a total that
+    quietly excludes what could not be looked up.
+
+    The roll-up exists because subsidiaries are not the same question as owners. Counting by the name
+    on a record splits one owner across every subsidiary it trades under and makes the largest player
+    look like several small ones — a plausible answer that is wrong, and wrong in a direction nobody
+    notices. Grouping by `ultimateOwner` puts them back together. Where the registry knows no parent,
+    the company IS its own owner; that is a fact about the company, not a gap.
+  properties:
+    name:
+      identity: true
+      description: "The name this profile was resolved for — the caller's own text, echoed back so it links to whatever asked."
+    wikidataId: "Stable public identifier for the entity."
+    ultimateOwner: "The organization at the top of the ownership chain. Absent when the registry knows no parent — meaning the company stands alone, not that the answer is unknown."
+    country: "Country the registry associates with the entity."
+    industry: "Industry the registry associates with the entity."
+    inception: "Date the entity was founded, as the registry reports it."
+    ticker: "Stock exchange ticker, when the entity is publicly listed."
+    candidates: { type: int, description: "How many registry entities carried this exact name. More than one means the match was ambiguous and the profile is the deterministic pick, not a certainty — say so rather than presenting it like a clean hit." }
+  virtualJoins:
+    # The general edge: any organization already in the graph can be resolved to its profile.
+    - anchorLabel: Organization
+      relationship: HAS_CORPORATE_PROFILE
+      keyField: name
+      recordKeyField: name
+      producer: companiesByName
+      maxAnchors: 200
+      maxFanoutTotal: 400
