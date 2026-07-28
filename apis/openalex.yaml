@@ -49,6 +49,36 @@ components:
             $ref: '#/components/schemas/Work'
 
 paths:
+  /authors:
+    get:
+      operationId: searchAuthors
+      summary: "Find researchers by name. Call: searchAuthors({ search: 'A. Researcher', per_page: 1 })."
+      description: >
+        Name search over OpenAlex's disambiguated author records. Disambiguation is the point: a raw
+        name string from a source record is not an identity — several people share it, and one person
+        writes their name several ways. Results are ordered by relevance; each carries the author's
+        works count, citation count and last known institution.
+      parameters:
+        - name: search
+          in: query
+          required: true
+          description: The researcher's name as the source record wrote it.
+          schema: { type: string }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 1, maximum: 25 }
+        - name: mailto
+          in: query
+          description: Contact address; OpenAlex serves a faster pool to identified callers.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Matching authors under `results[]`.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /works:
     get:
       operationId: searchWorks

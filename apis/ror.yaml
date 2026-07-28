@@ -1,0 +1,33 @@
+openapi: 3.0.3
+info:
+  title: ROR — Research Organization Registry (affiliation matching subset)
+  version: "2.0"
+  description: |
+    Public, free, no auth. The `affiliation` parameter is ROR's own affiliation-string matcher: it takes
+    the messy institution text that appears on a record and returns candidate organizations, each with a
+    match `score` and a `chosen` flag. That is the right surface for canonicalizing names that were typed
+    by a human — a plain full-text `query` returns thousands of fuzzy hits with no indication of whether
+    the top one is actually the same institution.
+servers:
+  - url: https://api.ror.org
+paths:
+  /v2/organizations:
+    get:
+      operationId: matchAffiliation
+      summary: Match one affiliation string to registry organizations, best first.
+      parameters:
+        - name: affiliation
+          in: query
+          required: true
+          description: The institution name as it appears on the source record.
+          schema: { type: string }
+      responses:
+        "200":
+          description: >
+            `items` ordered best-match first. Each item carries `score`, `chosen`, `matching_type`
+            and the matched `organization`.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true

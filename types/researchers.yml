@@ -1,0 +1,37 @@
+# A named researcher, resolved to a disambiguated scholarly identity. General: any realm holding people's
+# names — trial investigators, paper authors, speakers, grant holders — declares its own edge into this.
+
+- name: ResearcherProfile
+  userAnchor: false
+  description: |
+    A researcher as OpenAlex's disambiguated author records describe them, resolved from a name a source
+    record used.
+
+    Why disambiguation matters more than tidiness here: a name is not an identity. Several people share
+    one, and one person writes theirs several ways across a career. Matching people by string produces a
+    graph that looks connected and isn't — two strangers merged into one prolific figure, or one person
+    split across three spellings — and either way the conclusions drawn from it are confident and wrong.
+
+    The match is by name alone, so it inherits that risk rather than eliminating it. `worksCount` and
+    `institution` are what make a match checkable: a person who has published once and a person who has
+    published four hundred times are rarely the same, and an institution that agrees with the source
+    record's own affiliation is corroboration. Present a match as probable, never as certain.
+  properties:
+    name:
+      identity: true
+      description: "The name this profile was resolved for — the source record's own text, echoed back so it links to whatever asked."
+    openAlexId: "Stable identifier for the disambiguated author."
+    displayName: "The name the scholarly record uses for them, which may differ from the source record's spelling."
+    orcid: "ORCID, when known — a self-asserted identity and much stronger evidence than a name match."
+    worksCount: { type: int, description: "How many works are attributed to them. A sanity check on the match as much as a measure of output." }
+    citedByCount: { type: int, description: "Total citations across those works." }
+    institution: "Their last known institution, when recorded — corroboration when it agrees with the affiliation on the source record."
+  virtualJoins:
+    # The general edge: any person already in the graph can be resolved to a scholarly identity.
+    - anchorLabel: Person
+      relationship: HAS_RESEARCHER_PROFILE
+      keyField: name
+      recordKeyField: name
+      producer: researchersByName
+      maxAnchors: 50
+      maxFanoutTotal: 50

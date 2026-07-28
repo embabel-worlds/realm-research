@@ -1,0 +1,30 @@
+# Resolve a person's NAME to a disambiguated scholarly identity.
+#
+# One name per call: OpenAlex's name search takes a single string and the response doesn't echo it, so a
+# batch would return a pile of authors with no way to tell which name found which. The queried name is
+# stamped onto the record instead, which is what the join links on. Anchors are capped low because a
+# per-person call over a large population is exactly the kind of fan-out that turns a query into a storm.
+
+- name: researchersByName
+  kind: remote
+  operation: searchAuthors
+  keyArg: search
+  echoKeyAs: name
+  args:
+    per_page: 1        # the best match only — keeping runners-up would materialize strangers as if found
+    mailto: assistant@embabel.com   # OpenAlex serves a faster pool to identified callers
+  records: "$.results[*]"
+  project:
+    openAlexId: id
+    displayName: display_name
+    orcid: orcid
+    worksCount: works_count
+    citedByCount: cited_by_count
+    institution: last_known_institutions.0.display_name
+  cache:
+    kind: ttl
+    seconds: 604800   # a week — a person's scholarly record moves slowly
+  cost:
+    bucket: openalex
+    rate: "5/sec"
+    yield: medium

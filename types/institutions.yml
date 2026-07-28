@@ -1,0 +1,35 @@
+# A named institution, resolved to its registry identity. General: any realm holding institution names
+# — trial sites, paper affiliations, employers, conference hosts — declares its own edge into this type.
+
+- name: InstitutionProfile
+  userAnchor: false
+  description: |
+    An institution as the Research Organization Registry records it, resolved from the name a source
+    record happened to use.
+
+    Why this is not just a tidier string: counting names counts "Mass General", "Massachusetts General
+    Hospital" and "MGH" as three institutions, so the place running the most trials can look like three
+    places running a third as many each. Resolving to a registry identity puts them back together.
+
+    The match is scored, and the score is carried, because affiliation text is written by people and
+    sometimes matches nothing good. A weak match must read as weak — presenting a 0.72 the same way as
+    a 1.0 is how a wrong institution ends up in a chart with no way to notice.
+  properties:
+    name:
+      identity: true
+      description: "The name this profile was resolved for — the source record's own text, echoed back so it links to whatever asked."
+    rorId: "Registry identifier for the matched institution — stable across every spelling of the name."
+    country: "Country the registry records for the institution."
+    score: { type: number, description: "Match confidence from 0 to 1. Below a clean match this is a guess; say so rather than presenting it as resolved." }
+    chosen: { type: boolean, description: "Whether the registry's own matcher considers this a confident match. False means the top candidate was returned without conviction." }
+    relationshipTypes: { cardinality: LIST, description: "Kinds of related organization — 'parent', 'child', 'related' — positionally aligned with relationshipNames." }
+    relationshipNames: { cardinality: LIST, description: "Names of the related organizations, aligned with relationshipTypes. The entry whose type is 'parent' is the wider body a hospital or institute belongs to." }
+  virtualJoins:
+    # The general edge: any organization already in the graph can be canonicalized.
+    - anchorLabel: Organization
+      relationship: HAS_INSTITUTION_PROFILE
+      keyField: name
+      recordKeyField: name
+      producer: institutionsByName
+      maxAnchors: 100
+      maxFanoutTotal: 100

@@ -97,22 +97,22 @@
         MATCH (t:ResearchTopic {name:'quantum error correction'})-[:HAS_PAPER]->(p:ResearchPaper)
         RETURN p.title AS title, p.authorNames AS authors
         ORDER BY p.publishedDate DESC LIMIT 5
-    # ai_relevant — a per-fetched-paper LLM judgment for a discriminator no property captures.
+    # ai.relevant(p, '<criterion>') — a per-fetched-paper LLM judgment for a discriminator no property captures.
     # OpenAlex relevance-ranks on title+abstract, so it also returns papers that only mention the
     # mechanism in passing; this keeps only the ones genuinely about it. Composes with real predicates.
     - q: "recent papers really about the attention mechanism itself, not ones that just cite it"
       cypher: |
         MATCH (t:ResearchTopic {name:'transformer attention'})-[:HAS_PAPER]->(p:ResearchPaper)
-        WHERE p.ai_relevant = 'genuinely about the attention mechanism itself, not merely citing it in passing'
+        WHERE ai.relevant(p, 'genuinely about the attention mechanism itself, not merely citing it in passing')
         RETURN p.title AS title, p.url AS url
         ORDER BY p.relevanceScore DESC
-    # ai_score(...) — LLM fit score for top-k, when the ranking criterion is subjective and not a
+    # ai.score(...) — LLM fit score for top-k, when the ranking criterion is subjective and not a
     # stored scalar (relevanceScore/citedByCount only capture source relevance and popularity).
     - q: "which recent papers on graph memory best fit my work on long-term memory for AI agents"
       cypher: |
         MATCH (t:ResearchTopic {name:'graph memory'})-[:HAS_PAPER]->(p:ResearchPaper)
         RETURN p.title AS title, p.url AS url
-        ORDER BY ai_score(p, 'relevance to building long-term memory for AI agents') DESC LIMIT 5
+        ORDER BY ai.score(p, 'relevance to building long-term memory for AI agents') DESC LIMIT 5
 
 # ResearchAuthor: INTERNAL STAGING. A paper's raw OpenAlex author, brought transiently so the host's
 # AuthorPersonLinker can PROMOTE it to a Person hung off the paper by AUTHORED_BY — the REAL Person you know
