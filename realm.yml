@@ -2,7 +2,7 @@ name: research
 description: "Research realm — web search (Brave), arXiv, OpenAlex, Wikipedia, YouTube video search, and video transcripts (Supadata) for research workflows. All tools are vendored OpenAPI specs (no MCP servers, no Docker); URL fetching uses the platform's built-in fetch tool. Topic → videos → transcript is a graph traversal: (t:ResearchTopic)-[:HAS_VIDEO]->(v:YouTubeVideo)-[:HAS_TRANSCRIPT]->(tr:VideoTranscript). Set SUPADATA_API_KEY for transcripts and video metadata (duration, stats); YOUTUBE_API_KEY for video search."
 version: "0.3.0"
 author: "Embabel"
-url: "https://github.com/johnsonr/realm-research"
+url: "https://github.com/embabel-worlds/realm-research"
 tags:
   - research
   - search
