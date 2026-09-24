@@ -35,6 +35,19 @@ components:
       properties:
         original:
           type: string
+        # The query the engine ACTUALLY ran. Brave's spellcheck rewrites loosely and silently, and
+        # the response carries the rewrite — but this schema declared `original` alone, so it never
+        # appeared in the TypeScript surface a caller writes against and no caller ever read it.
+        # Measured 2026-07-31: a search for an organisation named in the user's own graph was
+        # rewritten to a similar public company, and the results were reported as that contact's
+        # employer's news. `altered` present and different from `original` is the fact that
+        # distinguishes "these results are about your entity" from "these are about a namesake".
+        altered:
+          type: string
+        # 1 when the caller disabled spellcheck (`spellcheck: 0`), so an absent `altered` can be
+        # read as "not rewritten" rather than "rewrite not reported".
+        spellcheck_off:
+          type: boolean
     WebSection:
       type: object
       properties:
