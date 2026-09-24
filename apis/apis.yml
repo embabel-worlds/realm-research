@@ -27,22 +27,36 @@
 # pack; the loader dedupes by URL so both entries load, and the
 # workspace-tier entry wins the shared namespace. Keep the two copies
 # of brave.yaml identical.
+# `capability-tags: [web-search]` declares what the API is FOR, so a
+# consumer that must choose a search tool without an LLM in the loop
+# (person research) selects on the capability rather than on the word
+# "brave". Distinct from `tags`, which filters a spec's operations.
 - url: brave.yaml
   name: brave
   type: openapi
   auth: api-key
   token-env: BRAVE_API_KEY
+  capability-tags: [web-search]
 
 # Wikipedia — public, no auth.
 # Wikimedia rejects requests without a User-Agent (HTTP 403 — see
 # https://w.wiki/4wJS). The gateway's default Spring User-Agent is
 # considered "robot policy" violating, so we set our own.
+# Tagged `web-search` alongside brave because selection is ALL-OR-NOTHING:
+# once anything in the world declares the capability, only declared tools
+# are chosen. Wikipedia was reached before this only because the host
+# matched the name "wikipedia"; leaving it untagged while brave is tagged
+# would silently drop it from research it used to serve. The tag sits on
+# the entry, so it covers every operation this spec exposes — `getSummary`
+# reads a page rather than searching, which is the same reach the name
+# match gave it.
 - url: wikipedia.yaml
   name: wikipedia
   type: openapi
   auth: none
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
+  capability-tags: [web-search]
 
 # Wikidata Query Service — public SPARQL, no auth, no key.
 # Backs the CorporateEntity join: a company name resolves to its Wikidata entity and,
