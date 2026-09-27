@@ -99,3 +99,4 @@
   operation-ids:
     - getVideoTranscript
     - getMediaMetadata
+    - getAccount        # free; the key check in keys.yml
