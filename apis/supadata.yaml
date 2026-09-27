@@ -113,6 +113,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Metadata"
+  /me:
+    get:
+      operationId: getAccount
+      summary: The account this API key belongs to.
+      description: >
+        Returns the plan and credit usage for the calling key. Costs no credits, so it is how the
+        host checks a Supadata key (keys.yml) without spending the account's allowance.
+      responses:
+        "200":
+          description: The account behind the key.
+          content:
+            application/json:
+              schema:
+                type: object
 components:
   securitySchemes:
     ApiKeyAuth:

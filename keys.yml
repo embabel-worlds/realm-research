@@ -1,0 +1,28 @@
+# The API keys this realm needs, and how the host checks each (realm-spec: keys.yml).
+# BRAVE_API_KEY is not declared here: it is a core key the host declares itself.
+
+- name: youtube
+  displayName: YouTube Data API
+  description: Video search.
+  getKeyUrl: https://console.cloud.google.com/apis/library/youtube.googleapis.com
+  fields:
+    - variable: YOUTUBE_API_KEY
+      displayName: API key
+  validate:
+    api: youtube
+    operation: searchYouTubeVideos
+    args: { q: test, part: snippet, maxResults: 1 }
+    # Google answers an invalid key 400 API_KEY_INVALID. The args are fixed, so a 400 can only be
+    # about the key. 403 is left out: it also means quota exhausted, which is not a bad key.
+    refusedOn: [400]
+
+- name: supadata
+  displayName: Supadata
+  description: Video transcripts and metadata.
+  getKeyUrl: https://dash.supadata.ai
+  fields:
+    - variable: SUPADATA_API_KEY
+      displayName: API key
+  validate:
+    api: supadata
+    operation: getAccount
