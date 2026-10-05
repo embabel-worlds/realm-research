@@ -83,8 +83,10 @@
     title: "The paper's title."
     url: "Link to the paper (OpenAlex work URL)."
     publishedDate: "Publication date (ISO-8601)."
-    citedByCount: "Number of works that cite this paper."
-    relevanceScore: "OpenAlex search relevance for the topic it was found by — sort/rank by this."
+    # Both are declared numeric because the schema text tells queries to ORDER BY them and compare them.
+    # Undeclared, a count arrives as text: ORDER BY puts "76" above "272" and `> 100` matches nothing.
+    citedByCount: { type: int, description: "Number of works that cite this paper." }
+    relevanceScore: { type: float, description: "OpenAlex search relevance for the topic it was found by — sort/rank by this." }
     authorNames: "Author display names (a list) — a quick read of who wrote it; the resolved authors are the AUTHORED_BY Persons."
     # abstract is intentionally absent in Phase 1 (OpenAlex returns it as an inverted index needing
     # reconstruction). Authors ARE projected now — promoted to AUTHORED_BY → Person (see the brings above).
