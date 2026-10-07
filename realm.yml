@@ -3,6 +3,7 @@ description: "Research realm — web search (Brave), arXiv, OpenAlex, Wikipedia,
 version: "0.3.0"
 author: "Embabel"
 url: "https://github.com/embabel-worlds/realm-research"
+category: knowledge
 tags:
   - research
   - search
