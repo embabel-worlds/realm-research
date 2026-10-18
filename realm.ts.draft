@@ -1,0 +1,76 @@
+// Written by shinar realm migrate from realm.yml and dist/manifest.json.
+// The handlers run on docker today, and a realm.ts realm is hosted on wasm only.
+// Port each handler to wasm/handlers.ts, then rename this file to realm.ts.
+// These folders stay files and are read beside realm.ts: actions/, commands/, goals/
+// Note: left out realm.yml field category: realm.ts has no field for it.
+import { type Realm } from "@embabel/realm-types";
+
+export default {
+  name: "research",
+  version: "0.3.0",
+  host: "wasm",
+  description: "Research realm — web search (Brave), arXiv, OpenAlex, Wikipedia, YouTube video search, and video transcripts (Supadata) for research workflows. All tools are vendored OpenAPI specs (no MCP servers, no Docker); URL fetching uses the platform's built-in fetch tool. Topic → videos → transcript is a graph traversal: (t:ResearchTopic)-[:HAS_VIDEO]->(v:YouTubeVideo)-[:HAS_TRANSCRIPT]->(tr:VideoTranscript). Set SUPADATA_API_KEY for transcripts and video metadata (duration, stats); YOUTUBE_API_KEY for video search.",
+  author: "Embabel",
+  url: "https://github.com/embabel-worlds/realm-research",
+  tags: ["research", "search", "documents"],
+  handlers: {
+    matchInstitutions: {
+      namespace: "institutions",
+      description: "Resolve institution names to registry identities, one call per name.",
+      input: {
+        type: "object",
+        properties: {
+          names: {
+            type: "array",
+            items: {
+              type: "string",
+            },
+          },
+        },
+        required: ["names"],
+      },
+      output: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+            },
+            rorId: {
+              type: "string",
+            },
+            officialName: {
+              type: "string",
+            },
+            country: {
+              type: "string",
+            },
+            score: {
+              type: "number",
+            },
+            chosen: {
+              type: "boolean",
+            },
+            parent: {
+              type: "string",
+            },
+            parentRorId: {
+              type: "string",
+            },
+            kinds: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+            },
+            established: {
+              type: "number",
+            },
+          },
+          required: ["name", "chosen", "kinds"],
+        },
+      },
+    },
+  },
+} satisfies Realm;
