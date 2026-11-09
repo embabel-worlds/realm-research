@@ -6,6 +6,8 @@
   name: arxiv
   type: openapi
   auth: none
+  operation-ids:
+    - searchArxiv
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
 
@@ -16,6 +18,9 @@
   name: openalex
   type: openapi
   auth: none
+  operation-ids:
+    - searchAuthors
+    - searchWorks
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
 
@@ -25,6 +30,8 @@
   name: ror
   type: openapi
   auth: none
+  operation-ids:
+    - matchAffiliation
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
 
@@ -44,6 +51,9 @@
   name: brave
   type: openapi
   auth: api-key
+  operation-ids:
+    - webSearch
+    - newsSearch
   token-env: BRAVE_API_KEY
   capability-tags: [web-search]
 
@@ -63,6 +73,10 @@
   name: wikipedia
   type: openapi
   auth: none
+  operation-ids:
+    - search
+    - searchSummaries
+    - getSummary
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
   capability-tags: [web-search]
@@ -75,6 +89,8 @@
   name: wikidata
   type: openapi
   auth: none
+  operation-ids:
+    - sparqlQuery
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
 
