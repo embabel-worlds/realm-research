@@ -6,8 +6,6 @@
   name: arxiv
   type: openapi
   auth: none
-  operation-ids:
-    - searchArxiv
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
 
