@@ -15,7 +15,13 @@
 - url: openalex.yaml
   name: openalex
   type: openapi
-  auth: none
+  # The key is OPTIONAL (me#3936 `token-optional`). Without one, OpenAlex answers from a free daily budget shared
+  # by everyone on the appliance's IP ($0.10 a day, ~100 searches, 10 requests a second); with a free key
+  # (https://openalex.org) the budget is your own, $1 a day (~1,000 searches) at 30 a second. Sent as
+  # `Authorization: Bearer <key>`, which OpenAlex accepts in place of ?api_key=.
+  auth: bearer
+  token-env: OPENALEX_API_KEY
+  token-optional: true
   headers:
     User-Agent: "EmbabelAssistant/1.0 (https://github.com/johnsonr/pack-research; assistant@embabel.com)"
 
