@@ -24,6 +24,13 @@
     publishedDate: publication_date
     citedByCount: cited_by_count
     relevanceScore: relevance_score
+    # Whether a reader can open it. OpenAlex's open_access block: is_oa, and the best free copy's URL when
+    # there is one; the publisher's landing page and the DOI otherwise. A paper behind a paywall should say so
+    # rather than send a person to a page that asks for a subscription (the Disease Atlas, 15 Nov).
+    isOpenAccess: open_access.is_oa
+    openAccessUrl: open_access.oa_url
+    publisherUrl: primary_location.landing_page_url
+    doi: doi
     # A `[*]` path flattens a nested array into a LIST property: every author's display name onto the
     # paper, for a quick "who wrote it" without traversing HAS_AUTHOR. (The paired author subgraph —
     # name + ORCID together, for resolution to people you know — comes via the HAS_PAPER `brings`.)
