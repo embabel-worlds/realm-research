@@ -30,7 +30,7 @@
 - name: openalex
   displayName: OpenAlex
   description: Optional. Research papers and citations work without it, on a small free budget shared by everyone on this network; your own free key gives about ten times as many searches a day.
-  getKeyUrl: https://openalex.org/settings/api
+  getKeyUrl: https://help.openalex.org/api/authentication/
   fields:
     - variable: OPENALEX_API_KEY
       displayName: API key
