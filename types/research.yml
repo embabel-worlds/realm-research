@@ -88,6 +88,10 @@
     citedByCount: { type: int, description: "Number of works that cite this paper." }
     relevanceScore: { type: float, description: "OpenAlex search relevance for the topic it was found by — sort/rank by this." }
     authorNames: "Author display names (a list) — a quick read of who wrote it; the resolved authors are the AUTHORED_BY Persons."
+    isOpenAccess: { type: boolean, description: "Whether a free-to-read copy exists (OpenAlex open_access.is_oa). False means the full text is behind a subscription; the abstract and metadata are still free on OpenAlex." }
+    openAccessUrl: "The best free-to-read copy's URL, when there is one (OpenAlex open_access.oa_url). Prefer it over `url` for a reader."
+    publisherUrl: "The publisher's landing page for the paper (primary_location.landing_page_url); may ask for a subscription when isOpenAccess is false."
+    doi: "The DOI as a URL (https://doi.org/…), when the paper has one."
     # abstract is intentionally absent in Phase 1 (OpenAlex returns it as an inverted index needing
     # reconstruction). Authors ARE projected now — promoted to AUTHORED_BY → Person (see the brings above).
   examples:
