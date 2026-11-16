@@ -39,9 +39,12 @@
   # without a key, $1 with one; 10 or 30 requests a second), and a topic's papers or a paper's citations
   # change over weeks, not minutes: without this, every page view of a disease re-searched its topics and
   # one afternoon of the Disease Atlas spent the whole day's budget (15 Nov).
+  # Empties too (16 Nov): a topic OpenAlex finds nothing for today finds nothing tomorrow, and each re-ask spends from
+  # the same daily budget. A failed or throttled call is never kept, so a 429 does not pin an empty.
   cache:
     kind: ttl
     seconds: 86400
+    negativeTtlSeconds: 86400
   cost:
     bucket: "openalex"
     rate: "10/sec"                  # OpenAlex polite pool: ~10 req/s, 100k/day
@@ -76,6 +79,7 @@
   cache:
     kind: ttl
     seconds: 86400
+    negativeTtlSeconds: 86400
   cost:
     bucket: "openalex"
     rate: "10/sec"
@@ -104,6 +108,7 @@
   cache:
     kind: ttl
     seconds: 86400
+    negativeTtlSeconds: 86400
   cost:
     bucket: "openalex"
     rate: "10/sec"
