@@ -19,6 +19,7 @@
   cache:
     kind: ttl
     seconds: 3600                   # news changes — cache an hour, not a day
+    negativeTtlSeconds: 3600        # and a topic with no news this past month is asked again within the hour at most
   cost:
     bucket: "brave"
     rate: "1/sec"                   # Brave free tier ~1 req/s
