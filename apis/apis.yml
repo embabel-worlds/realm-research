@@ -37,11 +37,16 @@
 # Brave Search — vendored OpenAPI spec, API-key auth.
 # BRAVE_API_KEY is read from the workspace credential store first,
 # then process env. Missing key => the API is skipped at load time.
-# The default workspace vendors the same spec under the same `brave`
-# name (config/apis/web-search.yml) so web search works without this
-# pack; the loader dedupes by URL so both entries load, and the
-# workspace-tier entry wins the shared namespace. Keep the two copies
-# of brave.yaml identical.
+# The default world declares the same API under the same `brave` name
+# (config/apis/web-search.yml) so web search works without this realm.
+# API names are one namespace across a world and its realms, and a later
+# declaration that is the SAME API (same spec content, servers, auth,
+# token-env, capability-tags and every other field that shapes a call) is
+# that API, loaded once with no problem; the world's entry, learned first,
+# holds the `brave` namespace and its credential. If this entry or
+# brave.yaml drifts from the world's in any of those, it is a different
+# API: it loads as `brave_research` and this realm reads degraded with a
+# problem naming the fields that differ. Keep both identical.
 # `capability-tags: [web-search]` declares what the API is FOR, so a
 # consumer that must choose a search tool without an LLM in the loop
 # (person research) selects on the capability rather than on the word
